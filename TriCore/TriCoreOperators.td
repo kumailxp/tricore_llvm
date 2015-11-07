@@ -69,6 +69,40 @@ def TriCoreimm8 : Operand<i32>, ImmLeaf<i32, [{
 }]>;
 
 //===----------------------------------------------------------------------===//
+// Custom Operand Definitions.
+//===----------------------------------------------------------------------===//
+
+//Operand
+def s9imm      : Operand<i32> {
+  let PrintMethod = "printSExtImm<9>";
+}
+
+def s8imm      : Operand<i32> {
+  let PrintMethod = "printZExt8Imm";
+}
+
+def s4imm      : Operand<i32> {
+  let PrintMethod = "printZExt4Imm";
+}
+
+// Signed Operand
+def s16imm      : Operand<i32> {
+  let PrintMethod= "printSExtImm<16>";
+}
+
+
+//Node
+def immSExt9 : ImmLeaf<i32, [{
+  return Imm >= -256 && Imm < 256;
+}]>;
+
+def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
+
+//Node
+def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
+def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;
+
+//===----------------------------------------------------------------------===//
 // Complex Pattern Definitions.
 //===----------------------------------------------------------------------===//
 

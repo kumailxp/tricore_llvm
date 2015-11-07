@@ -106,8 +106,9 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 }
 
 unsigned TriCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
-  return TFI->hasFP(MF) ? (TriCore::A11) :
-                          (TriCore::A10);
+  //const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  //return TFI->hasFP(MF) ? (TriCore::A11) :
+  //                        (TriCore::A10);
+	return TriCore::A10;
 }
 

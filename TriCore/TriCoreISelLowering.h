@@ -34,7 +34,11 @@ enum NodeType {
   LOAD_SYM,
   // This loads a 32-bit immediate into a register.
   MOVEi32,
-  CALL
+  CALL,
+
+	//Tricore comparison and branch
+	CMP,
+	BR_CC
 };
 }
 
@@ -82,6 +86,10 @@ private:
 
   // LowerGlobalAddress - Emit a constant load to the global address.
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+
+
+  //Lower Branch
+  SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 };
 }
 

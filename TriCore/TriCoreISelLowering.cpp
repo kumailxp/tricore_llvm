@@ -46,6 +46,8 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::LOAD_SYM: return "LOAD_SYM";
   case TriCoreISD::MOVEi32:  return "MOVEi32";
   case TriCoreISD::CALL:     return "CALL";
+  //case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
+	//case TriCoreISD::CMP:      return "TriCoreISD::CMP";
   }
 }
 
@@ -53,6 +55,9 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
     : TargetLowering(TriCoreTM), Subtarget(*TriCoreTM.getSubtargetImpl()) {
   // Set up the register classes.
   addRegisterClass(MVT::i32, &TriCore::DataRegsRegClass);
+  addRegisterClass(MVT::i32, &TriCore::AddrRegsRegClass);
+  addRegisterClass(MVT::i32, &TriCore::AddrRegsOthersRegClass);
+
 
   // Compute derived properties from the register classes
   computeRegisterProperties(Subtarget.getRegisterInfo());
@@ -63,15 +68,84 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
 
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
+  //setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
 }
 
 SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
-  default:
-    llvm_unreachable("Unimplemented operand");
-  case ISD::GlobalAddress:
-    return LowerGlobalAddress(Op, DAG);
+  default:								    llvm_unreachable("Unimplemented operand");
+  case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
+  //case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
   }
+}
+
+
+static StringRef printCondCode(ISD::CondCode e) {
+
+	switch(e){
+	default: return "unknown";
+	case ISD::SETEQ: return "SETEQ";
+	case ISD::SETGT: return "SETGT";
+	case ISD::SETGE: return "SETGE";
+	case ISD::SETLT: return "SETLT";
+	case ISD::SETLE: return "SETLE";
+	case ISD::SETNE: return "SETNE";
+	case ISD::SETTRUE2: return "SETTRUE2";
+	}
+}
+
+static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
+                       ISD::CondCode CC,
+                       SDLoc dl, SelectionDAG &DAG) {
+  // FIXME: Handle bittests someday
+  assert(!LHS.getValueType().isFloatingPoint() && "We don't handle FP yet");
+
+  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
+  outs()<<printCondCode(CC)<<"\n";
+  switch (CC) {
+  default: llvm_unreachable("Invalid integer condition!");
+  case ISD::SETGE:
+    // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+      TCC = TriCoreCC::COND_L;
+      break;
+    }
+    TCC = TriCoreCC::COND_GE;
+    break;
+  case ISD::SETGT:
+    std::swap(LHS, RHS);        // FALLTHROUGH#
+    TCC = TriCoreCC::COND_GE;
+		break;
+
+  }
+//  SDValue CompareOps[] = {LHS, RHS, Chain};
+//  EVT CompareTys[] = { MVT::Other, MVT::Glue };
+//    //EVT CompareTys[] = { MVT::Other };
+//    SDVTList CompareVT = DAG.getVTList(CompareTys);
+  TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
+//  return DAG.getNode(TriCoreISD::CMP, dl, CompareVT, CompareOps);
+  return DAG.getNode(TriCoreISD::CMP, dl, MVT::Glue, LHS, RHS);
+}
+
+
+SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue Chain = Op.getOperand(0);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+  SDValue LHS   = Op.getOperand(2);
+  SDValue RHS   = Op.getOperand(3);
+  SDValue Dest  = Op.getOperand(4);
+  SDLoc dl  (Op);
+
+  SDValue TargetCC;
+  SDValue Flag = EmitCMP(Chain, LHS, RHS, TargetCC, CC, dl, DAG);
+
+  outs()<<"TriCoreTargetLowering::LowerBR_CC\n";
+
+  return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
+                     Chain, Dest, TargetCC, Flag);
 }
 
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const

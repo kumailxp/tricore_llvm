@@ -38,12 +38,12 @@ TriCoreFrameLowering::TriCoreFrameLowering()
   // Do nothing
 }
 
-/*
+
 bool TriCoreFrameLowering::hasFP(const MachineFunction &MF) const {
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
          MF.getFrameInfo()->hasVarSizedObjects();
 }
-*/
+
 
 uint64_t TriCoreFrameLowering::computeStackSize(MachineFunction &MF) const {
   MachineFrameInfo *MFI = MF.getFrameInfo();
@@ -55,31 +55,74 @@ uint64_t TriCoreFrameLowering::computeStackSize(MachineFunction &MF) const {
   return StackSize;
 }
 
+// Materialize an offset for a ADD/SUB stack operation.
+// Return zero if the offset fits into the instruction as an immediate,
+// or the number of the register where the offset is materialized.
+static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
+                                  MachineBasicBlock::iterator MBBI,
+                                  unsigned Offset) {
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+  DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
+  const uint64_t MaxSubImm = 0xfff;
+  if (Offset <= MaxSubImm) {
+    // The stack offset fits in the ADD/SUB instruction.
+    return 0;
+  } else {
+    // The stack offset does not fit in the ADD/SUB instruction.
+    // Materialize the offset using MOVLO/MOVHI.
+    unsigned OffsetReg = TriCore::A14;
+    unsigned OffsetLo = (unsigned)(Offset & 0xffff);
+    unsigned OffsetHi = (unsigned)((Offset & 0xffff0000) >> 16);
+    BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVrlc), OffsetReg) //MOVLOi16
+        .addImm(OffsetLo)
+        .setMIFlag(MachineInstr::FrameSetup);
+    if (OffsetHi) {
+      BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVHIi16), OffsetReg)
+          .addReg(OffsetReg)
+          .addImm(OffsetHi)
+          .setMIFlag(MachineInstr::FrameSetup);
+    }
+    return OffsetReg;
+  }
+}
+
 //////////////////////////////////////////////////////////
 
 //- Must have, hasFP() is pure virtual of parent
 // hasFP - Return true if the specified function should have a dedicated frame
 // pointer register.  This is true if the function has variable sized allocas or
 // if frame pointer elimination is disabled.
-bool TriCoreFrameLowering::hasFP(const MachineFunction &MF) const {
-  const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-      MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
-}
+//bool TriCoreFrameLowering::hasFP(const MachineFunction &MF) const {
+//  const MachineFrameInfo *MFI = MF.getFrameInfo();
+//  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+//      MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
+//}
 /////////////////////////////////////////////////////////
 void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
+
+  outs() << "=====ADD Prologue====\n";
+
+  for( auto it=MF.begin() ; it!=MF.end() ; ++it) {
+	  outs()<<"MF: " <<it->getName() <<"\n";
+  }
+
+  for( auto it=MBB.begin() ; it!=MBB.end() ; ++it) {
+  	  outs()<<"MB: " <<it->getOpcode() <<"\n";
+  }
   // Compute the stack size, to determine if we need a prologue at all.
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   uint64_t StackSize = computeStackSize(MF);
   if (!StackSize) {
+	outs() << "ends in if!\n";
     return;
   }
-  /*
+  outs() << "goes ahead!\n";
+
   // Adjust the stack pointer.
-  unsigned StackReg = TriCore::SP;
+  unsigned StackReg = TriCore::A10;
   unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
   if (OffsetReg) {
     BuildMI(MBB, MBBI, dl, TII.get(TriCore::SUBrr), StackReg)
@@ -92,7 +135,7 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
         .addImm(StackSize)
         .setMIFlag(MachineInstr::FrameSetup);
   }
-  */
+
 }
 
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
@@ -106,9 +149,9 @@ void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
     return;
   }
 
-  /*
+
   // Restore the stack pointer to what it was at the beginning of the function.
-  unsigned StackReg = TriCore::SP;
+  unsigned StackReg = TriCore::A10;
   unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
   if (OffsetReg) {
     BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDrr), StackReg)
@@ -121,7 +164,7 @@ void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
         .addImm(StackSize)
         .setMIFlag(MachineInstr::FrameSetup);
   }
-  */
+
 }
 
 // This function eliminates ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo

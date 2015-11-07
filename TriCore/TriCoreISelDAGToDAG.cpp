@@ -73,8 +73,10 @@ SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
   // Make sure the immediate size is supported.
   ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
   uint64_t ImmVal = ConstVal->getZExtValue();
+  outs() <<"ImmVal: "<<  ImmVal << "\n";
   uint64_t SupportedMask = 0xfffffffff;
   if ((ImmVal & SupportedMask) != ImmVal) {
+  	outs() <<" Immediate size not supported!\n";
     return SelectCode(N);
   }
 
@@ -84,21 +86,61 @@ SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
   uint64_t ImmLo = (ImmVal & LoMask);
   uint64_t ImmHi = (ImmVal & HiMask);
   SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
-  MachineSDNode *Move =
-      CurDAG->getMachineNode(TriCore::MOVLOi16, N, MVT::i32, ConstLo);
-
-  // Select the low part of the immediate move, if needed.
+  MachineSDNode *Move;
+  if(ImmVal < 65535) {
+  	Move =
+  			CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstLo); //MOVLOi16
+  }
+  // Select the high part of the immediate move, if needed.
   if (ImmHi) {
+	outs() <<"Select the high part\n";
+//	SDValue *x = new SDValue(Move, 0);
+//
+//	outs()<< "operands: " << x->getNumOperands() <<"\n";
+//	outs()<< "operands: " << x->getNode() <<"\n";
     SDValue ConstHi = CurDAG->getTargetConstant(ImmHi >> 16, N, MVT::i32);
-    Move = CurDAG->getMachineNode(TriCore::MOVHIi16, N, MVT::i32, SDValue(Move, 0),
-                                  ConstHi);
+    outs()<< "ImmHi: " << ImmHi <<"\n";
+    outs()<< "ImmHi >> 16: " << (ImmHi >> 16) <<"\n";
+    outs()<< "ImmLo: " << ImmLo <<"\n";
+    MachineSDNode *MoveHi;
+    MoveHi = CurDAG->getMachineNode(TriCore::MOVHIi16, N, MVT::i32, ConstHi);
+		Move = CurDAG->getMachineNode(TriCore::ADDi, N, MVT::i32, SDValue(MoveHi, 0),
+																		ConstLo);
+
+    outs()<< Move <<"\n";
   }
 
-  return Move;
+  	return Move;
 }
 
 SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N) {
-  return (N);
+
+	SDValue Chain = N->getOperand(0);
+	SDValue Cond = N->getOperand(1);
+	SDValue LHS = N->getOperand(2);
+	SDValue RHS = N->getOperand(3);
+	SDValue Target = N->getOperand(4);
+
+	// Generate a comparison instruction.
+	EVT CompareTys[] = { MVT::Other, MVT::Glue };
+	//EVT CompareTys[] = { MVT::Other };
+	SDVTList CompareVT = CurDAG->getVTList(CompareTys);
+
+	SDValue CompareOps[] = {LHS, RHS, Chain};
+	SDNode *Compare = CurDAG->getMachineNode(TriCore::CMPrr, N, CompareVT, CompareOps);
+
+	CondCodeSDNode *CC = cast<CondCodeSDNode>(Cond.getNode());
+	SDValue CCVal = CurDAG->getTargetConstant(CC->get(), N, MVT::i32);
+	SDValue BranchOps[] = {CCVal, Target, SDValue(Compare, 0),
+			SDValue(Compare, 1)};
+
+	MachineSDNode *branchInst = CurDAG->getMachineNode(TriCore::JCC, N, MVT::Other, BranchOps);
+	branchInst->dump();
+
+	return branchInst;
+
+
+
 }
 
 SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {

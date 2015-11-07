@@ -51,18 +51,18 @@ public:
   virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
                                       int &FrameIndex) const override;
 
-  virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
-                             MachineBasicBlock *&FBB,
-                             SmallVectorImpl<MachineOperand> &Cond,
-                             bool AllowModify) const override;
-
-  virtual unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-  
-  
-  virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                                MachineBasicBlock *FBB,
-                                ArrayRef<MachineOperand> Cond,
-                                DebugLoc DL) const override;
+//  virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+//                             MachineBasicBlock *&FBB,
+//                             SmallVectorImpl<MachineOperand> &Cond,
+//                             bool AllowModify) const override;
+//
+//  virtual unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
+//
+//
+//  virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+//                                MachineBasicBlock *FBB,
+//                                ArrayRef<MachineOperand> Cond,
+//                                DebugLoc DL) const override;
 
   virtual void copyPhysReg(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator I, DebugLoc DL,
@@ -85,6 +85,16 @@ public:
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const
      override;
+
+  bool AnalyzeBranch(MachineBasicBlock &MBB,
+                       MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,
+                       SmallVectorImpl<MachineOperand> &Cond,
+                       bool AllowModify) const override;
+
+	unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
+	unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+                          MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
+                          DebugLoc DL) const override;
 };
 }
 

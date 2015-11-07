@@ -72,6 +72,34 @@ class SRR<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
 
 }
 
+
+//===----------------------------------------------------------------------===//
+// 16-bit SRC Instruction Format: <const4|s1/d|op1>
+//===----------------------------------------------------------------------===//
+class SRC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : T16<op1, outs, ins, asmstr, pattern> {
+
+  bits<4> const4;
+  bits<4> s1_d;
+  
+  let Inst{11-8} = s1_d;
+  let Inst{15-12} = const4; 
+
+}
+
+
+//===----------------------------------------------------------------------===//
+// 16-bit SC Instruction Format: <const8|op1>
+//===----------------------------------------------------------------------===//
+class SC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
+    : T16<op1, outs, ins, asmstr, pattern> {
+
+  bits<8> const8;
+   
+  let Inst{15-8} = const8;
+ 
+}
+
 //===----------------------------------------------------------------------===//
 // 16-bit SB Instruction Format: <op2|s1/d|op1>
 //===----------------------------------------------------------------------===//
@@ -163,7 +191,17 @@ class B<bits<8> op1, dag outs, dag ins, string asmstr,
   let Inst{15-8} = disp24{23-16};
   let Inst{31-16} = disp24{15-0};
 }
+
+
+//===----------------------------------------------------------------------===//
+// 32-bit BRR Instruction Format: <op2|disp15|s2|s1|op1>
+//===----------------------------------------------------------------------===//
+class BRR<bits<8> op1, dag outs, dag ins, string asmstr, 
+                list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
  
+}
+ 
+
 //===----------------------------------------------------------------------===//
 // 32-bit BOL Instr Format: <off16[9:6]|off16[15:10]|off16[5:0]|s2|s1/d|op1>
 //===----------------------------------------------------------------------===//

@@ -21,6 +21,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
+#include "../TriCore.h"
 using namespace llvm;
 
 #include "TriCoreGenAsmWriter.inc"
@@ -62,6 +63,59 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
     OS << Offset;
   }
 }
+
+void TriCoreInstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
+                                             raw_ostream &O) {
+  const MCOperand &Op = MI->getOperand(OpNo);
+  if (Op.isImm())
+    O << Op.getImm();
+  else {
+    assert(Op.isExpr() && "unknown pcrel immediate operand");
+    Op.getExpr()->print(O, &MAI);
+  }
+}
+
+static StringRef _printCondCode(unsigned e) {
+
+	switch(e){
+	default: return "unknown";
+	case TriCoreCC::COND_E: return "COND_E";
+	case TriCoreCC::COND_NE: return "COND_NE";
+	case TriCoreCC::COND_HS: return "COND_HS";
+	case TriCoreCC::COND_LO: return "COND_LO";
+	case TriCoreCC::COND_GE: return "COND_GE";
+	case TriCoreCC::COND_L: return "COND_L";
+	}
+}
+
+void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
+                                       raw_ostream &O) {
+  unsigned CC = MI->getOperand(OpNo).getImm();
+  outs()<<_printCondCode(CC)<<"\n";
+  switch (CC) {
+  default:
+   llvm_unreachable("Unsupported CC code");
+  case TriCoreCC::COND_E:
+   O << "eq";
+   break;
+  case TriCoreCC::COND_NE:
+   O << "ne";
+   break;
+  case TriCoreCC::COND_HS:
+   O << "hs";
+   break;
+  case TriCoreCC::COND_LO:
+   O << "lo";
+   break;
+  case TriCoreCC::COND_GE:
+   O << "ge";
+   break;
+  case TriCoreCC::COND_L:
+   O << 'l';
+   break;
+  }
+}
+
 
 const char * _condCodeToString(ISD::CondCode CC) {
   switch (CC) {
@@ -105,6 +159,35 @@ const char * _condCodeToString(ISD::CondCode CC) {
     return "ne";
   }
 }
+
+//===----------------------------------------------------------------------===//
+// PrintSExtImm<unsigned bits>
+//===----------------------------------------------------------------------===//
+template <unsigned int bits>
+void TriCoreInstPrinter::printSExtImm(const MCInst *MI, unsigned OpNo,
+                                       raw_ostream &O) {
+  int Value = MI->getOperand(OpNo).getImm();
+  Value = SignExtend32<bits>(Value);
+  O << (int)Value;
+}
+
+
+void TriCoreInstPrinter::printZExt8Imm(const MCInst *MI, int OpNo,
+                                       raw_ostream &O) {
+  unsigned int Value = MI->getOperand(OpNo).getImm();
+  assert(Value <= 255 && "Invalid u8imm argument!");
+  //Value =  (unsigned char)(Value);
+  O << (unsigned int)Value;
+}
+
+
+void TriCoreInstPrinter::printZExt4Imm(const MCInst *MI, unsigned OpNo,
+											raw_ostream &O) {
+  unsigned int Value = MI->getOperand(OpNo).getImm();
+  assert(Value <= 15 && "Invalid u4imm argument!");
+  O << (unsigned int)Value;
+}
+
 
 /*
 //Print unsigned operand
