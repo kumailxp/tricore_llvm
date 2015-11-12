@@ -92,10 +92,11 @@ def s16imm      : Operand<i32> {
 
 
 //Node
-def immSExt9 : ImmLeaf<i32, [{
-  return Imm >= -256 && Imm < 256;
-}]>;
+//def immSExt9 : ImmLeaf<i32, [{
+//  return Imm >= -256 && Imm < 256;
+//}]>;
 
+def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 
 //Node

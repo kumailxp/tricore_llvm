@@ -80,22 +80,22 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 		return;
 	}
 
-	bool AddrDest = TriCore::AddrRegsOthersRegClass.contains(DestReg);
-	bool AddrSrc = TriCore::AddrRegsOthersRegClass.contains(SrcReg);
-
-	unsigned Opc = 0;
-	if (DataRegsDest && AddrSrc)
-		Opc = TriCore::MOVdRR;
-	else if (AddrDest && DataRegsSrc)
-		Opc = TriCore::MOVaRR;
-	else if (AddrDest && AddrSrc)
-		Opc = TriCore::MOVaaRR;
-
-	if (Opc) {
-		MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
-		MIB.addReg(SrcReg, getKillRegState(KillSrc));
-		return;
-	}
+//	bool AddrDest = TriCore::AddrRegsOthersRegClass.contains(DestReg);
+//	bool AddrSrc = TriCore::AddrRegsOthersRegClass.contains(SrcReg);
+//
+//	unsigned Opc = 0;
+//	if (DataRegsDest && AddrSrc)
+//		Opc = TriCore::MOVdRR;
+//	else if (AddrDest && DataRegsSrc)
+//		Opc = TriCore::MOVaRR;
+//	else if (AddrDest && AddrSrc)
+//		Opc = TriCore::MOVaaRR;
+//
+//	if (Opc) {
+//		MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
+//		MIB.addReg(SrcReg, getKillRegState(KillSrc));
+//		return;
+//	}
 
 }
 
@@ -123,148 +123,106 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
 //Branch Analysis
 
-unsigned TriCoreInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
-  MachineBasicBlock::iterator I = MBB.end();
-  unsigned Count = 0;
 
-  while (I != MBB.begin()) {
-    --I;
-    if (I->isDebugValue())
-      continue;
-    if (I->getOpcode() != TriCore::JMP &&
-        I->getOpcode() != TriCore::JCC)
-      break;
-    // Remove the branch.
-    I->eraseFromParent();
-    I = MBB.end();
-    ++Count;
-  }
-
-  return Count;
-}
-
-
-bool TriCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,
-                                    MachineBasicBlock *&TBB,
-                                    MachineBasicBlock *&FBB,
-                                    SmallVectorImpl<MachineOperand> &Cond,
-                                    bool AllowModify) const {
-  // Start from the bottom of the block and work up, examining the
-  // terminator instructions.
-  MachineBasicBlock::iterator I = MBB.end();
-  while (I != MBB.begin()) {
-    --I;
-    if (I->isDebugValue())
-      continue;
-
-    // Working from the bottom, when we see a non-terminator
-    // instruction, we're done.
-    if (!isUnpredicatedTerminator(I))
-      break;
-
-    // A terminator that isn't a branch can't easily be handled
-    // by this analysis.
-    if (!I->isBranch())
-      return true;
-
-//    // Cannot handle indirect branches.
-//    if (I->getOpcode() == MSP430::Br ||
-//        I->getOpcode() == MSP430::Bm)
-//      return true;
-
-    // Handle unconditional branches.
-    if (I->getOpcode() == TriCore::JMP) {
-      if (!AllowModify) {
-        TBB = I->getOperand(0).getMBB();
-        continue;
+bool
+TriCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+                            MachineBasicBlock *&FBB,
+                            SmallVectorImpl<MachineOperand> &Cond,
+														std::vector<unsigned> &s1,
+													  std::vector<unsigned> &s2,
+                            bool AllowModify) const {
+  bool HasCondBranch = false;
+  TBB = nullptr;
+  FBB = nullptr;
+  for (MachineInstr &MI : MBB) {
+    if (MI.getOpcode() == TriCore::JMP) {
+    	//outs() << "MI.getOpcode() == LEG::B\n";
+    	//MI.getOperand(0).getMBB()->dump();
+      MachineBasicBlock *TargetBB = MI.getOperand(0).getMBB();
+      if (HasCondBranch) {
+        FBB = TargetBB;
+      } else {
+        TBB = TargetBB;
       }
-
-      // If the block has any instructions after a JMP, delete them.
-      while (std::next(I) != MBB.end())
-        std::next(I)->eraseFromParent();
-      Cond.clear();
-      FBB = nullptr;
-
-      // Delete the JMP if it's equivalent to a fall-through.
-      if (MBB.isLayoutSuccessor(I->getOperand(0).getMBB())) {
-        TBB = nullptr;
-        I->eraseFromParent();
-        I = MBB.end();
-        continue;
-      }
-
-      // TBB is used to indicate the unconditional destination.
-      TBB = I->getOperand(0).getMBB();
-      continue;
+    } else if (MI.getOpcode() == TriCore::JCC) {
+    	//outs()<< "MI.getOpcode() == LEG::Bcc\n";
+    	//MI.getOperand(1).getMBB()->dump();
+      MachineBasicBlock *TargetBB = MI.getOperand(1).getMBB();
+      s1.push_back(MI.getOperand(2).getReg());
+      s2.push_back(MI.getOperand(2).getReg());
+      TBB = TargetBB;
+      Cond.push_back(MI.getOperand(0));
+      HasCondBranch = true;
     }
-
-    // Handle conditional branches.
-    assert(I->getOpcode() == TriCore::JCC && "Invalid conditional branch");
-    TriCoreCC::CondCodes BranchCode =
-      static_cast<TriCoreCC::CondCodes>(I->getOperand(1).getImm());
-    if (BranchCode == TriCoreCC::COND_INVALID)
-      return true;  // Can't handle weird stuff.
-
-    // Working from the bottom, handle the first conditional branch.
-    if (Cond.empty()) {
-      FBB = TBB;
-      TBB = I->getOperand(0).getMBB();
-      Cond.push_back(MachineOperand::CreateImm(BranchCode));
-      continue;
-    }
-
-    // Handle subsequent conditional branches. Only handle the case where all
-    // conditional branches branch to the same destination.
-    assert(Cond.size() == 1);
-    assert(TBB);
-
-    // Only handle the case where all conditional branches branch to
-    // the same destination.
-    if (TBB != I->getOperand(0).getMBB())
-      return true;
-
-    //TriCoreCC::CondCodes OldBranchCode = (TriCoreCC::CondCodes)Cond[0].getImm();
-    ISD::CondCode OldBranchCode = (ISD::CondCode)Cond[0].getImm();
-    // If the conditions are the same, we can leave them alone.
-    if (OldBranchCode == BranchCode)
-      continue;
-
-    return true;
   }
-
   return false;
 }
-
+/// RemoveBranch - Remove the branching code at the end of the specific MBB.
+/// This is only invoked in cases where AnalyzeBranch returns success. It
+/// returns the number of instructions that were removed.
 unsigned
-TriCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                              MachineBasicBlock *FBB,
-                              ArrayRef<MachineOperand> Cond,
-                              DebugLoc DL) const {
-  // Shouldn't be a fall through.
-  assert(TBB && "InsertBranch must not be told to insert a fallthrough");
-  assert((Cond.size() == 1 || Cond.size() == 0) &&
-         "MSP430 branch conditions have one component!");
+TriCoreInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
+  if (MBB.empty())
+    return 0;
 
-  if (Cond.empty()) {
-    // Unconditional branch?
-    assert(!FBB && "Unconditional branch with multiple successors!");
-    BuildMI(&MBB, DL, get(TriCore::JMP)).addMBB(TBB);
-    return 1;
-  }
+  outs()<< "RemoveBranch\n";
+  unsigned NumRemoved = 0;
+  auto I = MBB.end();
+  do {
+    --I;
+    unsigned Opc = I->getOpcode();
+    if ((Opc == TriCore::JMP) || (Opc == TriCore::JCC)) {
+      auto ToDelete = I;
+      //(*I).dump();
+      ++I;
+      MBB.erase(ToDelete);
+      NumRemoved++;
+    }
+  } while (I != MBB.begin());
 
-  // Conditional branch.
-  unsigned Count = 0;
-  BuildMI(&MBB, DL, get(TriCore::JCC)).addMBB(TBB).addImm(Cond[0].getImm());
-  ++Count;
-
-  if (FBB) {
-    // Two-way Conditional branch. Insert the second branch.
-    BuildMI(&MBB, DL, get(TriCore::JMP)).addMBB(FBB);
-    ++Count;
-  }
-  return Count;
+  outs()<<"NumRemoved: " << NumRemoved <<"\n";
+  return NumRemoved;
 }
 
+/// InsertBranch - Insert branch code into the end of the specified
+/// MachineBasicBlock.  The operands to this method are the same as those
+/// returned by AnalyzeBranch.  This is only invoked in cases where
+/// AnalyzeBranch returns success. It returns the number of instructions
+/// inserted.
+///
+/// It is also invoked by tail merging to add unconditional branches in
+/// cases where AnalyzeBranch doesn't apply because there was no original
+/// branch to analyze.  At least this much must be implemented, else tail
+/// merging needs to be disabled.
+unsigned TriCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,
+                                    MachineBasicBlock *TBB,
+                                    MachineBasicBlock *FBB,
+                                    ArrayRef<MachineOperand> Cond,
+																		std::vector<unsigned> &s1,
+																		std::vector<unsigned> &s2,
+                                    DebugLoc DL) const {
+  unsigned NumInserted = 0;
+
+
+  outs()<< "InsertBranch\n";
+  // Insert any conditional branch.
+  if (Cond.size() > 0) {
+    BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
+    																							.addReg(s1[0]).addReg(s2[0]);
+    NumInserted++;
+  }
+
+  // Insert any unconditional branch.
+  if (Cond.empty() || FBB) {
+    BuildMI(MBB, MBB.end(), DL, get(TriCore::JMP)).addMBB(Cond.empty() ? TBB : FBB);
+    NumInserted++;
+  }
+  outs()<<"NumInserted: " << NumInserted <<"\n";
+  return NumInserted;
+}
+
+
+///////////////////////////////////////////
 
 
 bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const

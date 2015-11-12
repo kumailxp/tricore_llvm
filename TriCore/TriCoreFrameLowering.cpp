@@ -101,22 +101,22 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
 void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
 
-  outs() << "=====ADD Prologue====\n";
-
-  for( auto it=MF.begin() ; it!=MF.end() ; ++it) {
-	  outs()<<"MF: " <<it->getName() <<"\n";
-  }
-
-  for( auto it=MBB.begin() ; it!=MBB.end() ; ++it) {
-  	  outs()<<"MB: " <<it->getOpcode() <<"\n";
-  }
+//  outs() << "=====ADD Prologue====\n";
+//
+//  for( auto it=MF.begin() ; it!=MF.end() ; ++it) {
+//	  outs()<<"MF: " <<it->getName() <<"\n";
+//  }
+//
+//  for( auto it=MBB.begin() ; it!=MBB.end() ; ++it) {
+//  	  outs()<<"MB: " <<it->getOpcode() <<"\n";
+//  }
   // Compute the stack size, to determine if we need a prologue at all.
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   uint64_t StackSize = computeStackSize(MF);
   if (!StackSize) {
-	outs() << "ends in if!\n";
+//	outs() << "ends in if!\n";
     return;
   }
   outs() << "goes ahead!\n";

@@ -198,6 +198,14 @@ class B<bits<8> op1, dag outs, dag ins, string asmstr,
 //===----------------------------------------------------------------------===//
 class BRR<bits<8> op1, dag outs, dag ins, string asmstr, 
                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
+	
+	bits<4> s1;
+	bits<4> s2;
+	
+	let Inst{7-0} = op1;
+	let Inst{11-8} = s1;
+	let Inst{15-12} = s1;
+	
  
 }
  

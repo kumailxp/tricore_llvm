@@ -16,12 +16,24 @@ include "TriCoreOperators.td"
 
 
 def SDT_TriCoreCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
-def SDT_TriCoreBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
-                                                  SDTCisVT<1, i32>]>;
+//def SDT_TriCoreBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
+//                                                  SDTCisVT<1, i32>]>;
+
+def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
+																									 SDTCisVT<1, OtherVT>,
+																									 SDTCisSameAs<2, 3>,
+																									 SDTCisInt<2>
+                                                   
+																						
+																									]>;
 
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
+
+def TriCorecmpb     : SDNode<"TriCoreISD::CMPB", SDTIntBinOp, [ ]>;
+
+
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
-                            [SDNPHasChain, SDNPInGlue]>;
+                            [SDNPHasChain]>;
 
 // Short jump targets have OtherVT type and are printed as pcrel imm values.
 def jmptarget : Operand<OtherVT> {
@@ -33,13 +45,7 @@ def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
 
-def bl_target : Operand<i32>;
 
-def b_target : Operand<OtherVT>;
-
-def cc_val : Operand<i32> {
-  let PrintMethod = "printCondCode";
-}
 
 
 //===----------------------------------------------------------------------===//
@@ -96,22 +102,22 @@ def SUBri : SC<0x8B, (outs AddrRegs:$d), (ins DataRegs:$src1, s8imm:$imm),
 // Mov Immediate Instructions
 //===----------------------------------------------------------------------===//
 
-//def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
-//				"movxx $d, $s2", [ (set DataRegs:$d, DataRegs:$s2) ]>;
-
 def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
-				"movxx $d, $s2", [  ]>;
-def MOVaRR : RR<0x01, 0x63, (outs AddrRegsOthers:$d), (ins DataRegs:$s2),
-				"mov.a $d, $s2", [ ]>;
-def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegsOthers:$s2),
-				"mov.d $d, $s2", [ ]>;
-//def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
-//				"mov.aa $d, $s2", [(set i32:$d, i32:$s2)]>;
+				"mov $d, $s2", [ (set DataRegs:$d, DataRegs:$s2) ]>;
 
-def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
-				"mov.aa $d, $s2", [ ]>;
-def MOVaSRC : SRC<0xA0, (outs AddrRegsOthers:$dst), (ins s4imm:$src1),
-				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, immZExt4:$src1)]>;
+//def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
+//				"movxx $d, $s2", [  ]>;
+//def MOVaRR : RR<0x01, 0x63, (outs AddrRegsOthers:$d), (ins DataRegs:$s2),
+//				"mov.a $d, $s2", [ ]>;
+//def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegsOthers:$s2),
+//				"mov.d $d, $s2", [ ]>;
+////def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
+////				"mov.aa $d, $s2", [(set i32:$d, i32:$s2)]>;
+//
+//def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
+//				"mov.aa $d, $s2", [ ]>;
+//def MOVaSRC : SRC<0xA0, (outs AddrRegsOthers:$dst), (ins s4imm:$src1),
+//				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, immZExt4:$src1)]>;
 //
 //def MOVaSRR : SRC<0x60, (outs AddrRegsOthers:$dst), (ins DataRegs:$src1),
 //				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, DataRegs:$src1)]>;
@@ -184,56 +190,87 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [A11] in {
 
 
 
-def CMPrr  : RR<0x0B, 0x14 ,
+//def CMPrr  : T32<(outs), (DataRegs:$lhs, DataRegs:$rhs),
+//                   "cmp $lhs, $rhs",
+//                   []> {
+//	
+//	bits<4> lhs;
+//	bits<4> rhs;
+//
+//	let Defs = [D9];
+//	
+//}
+
+//def CMPri  : RC<0x0B, 0x14 ,
+//                   (outs), (ins DataRegs:$s1, s9imm:$const9),
+//                   "cmp $s1, $const9",
+//                   [(TriCorecmp DataRegs:$s1, immSExt9:$const9)]> {
+//	
+//	
+//	let Defs = [D9];
+//}
+
+def CMPri  : RC<0x0B, 0x14 ,
+                   (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+                   "cmp $d, $s1, $s2",
+                   [(set i32:$d, (TriCorecmpb i32:$s1, i32:$s2))]> {
+	
+	
+
+}
+//
+
+def CMPrr  : RR<0x0, 0x14,
                    (outs), (ins DataRegs:$s1, DataRegs:$s2),
-                   "cmp $s2, $s1",
-                   []>;
-
-//def CMPri  : RR<0x0B, 0x14 ,
-//                   (outs), (ins DataRegs:$s1, s9imm:$s2),
-//                   "cmp $s2, $s1",
-//                   [(TriCorecmp DataRegs:$s1, immSExt9:$s2)]>;
-
-//def CMP8rr  : I8rr<0x0,
-//                   (outs), (ins GR8:$src, GR8:$src2),
-//                   "cmp.b\t{$src2, $src}",
-//                   [(MSP430cmp GR8:$src, GR8:$src2), (implicit SR)]>;
+                   "cmp $s1, $s2",
+                   [(TriCorecmp DataRegs:$s1, DataRegs:$s2)]> {
+			let Defs = [D9];
+	
+}
 
 //===----------------------------------------------------------------------===//
 // Jump Instructions
 //===----------------------------------------------------------------------===//
-//let isBranch =1, isTerminator = 1 in {
-//	let isBarrier = 1 in {
-//			// Short branch
-//			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
-//							"j $dst",
-//							[(br bb:$dst)]>;
-//	}
-//	
-//	
-////	// Conditional branches
-////	let Uses = [A10] in
-//		def JCC : BRR<0, (outs), (ins jmptarget:$disp15, cc:$cc1),
-//									"j$cc1 $disp15",
-//									[/*(TriCorebrcc bb:$disp15, imm:$cc1)*/]>;
-//} // isBranch, isTerminator
+let isBranch =1, isTerminator = 1 in {
+	let isBarrier = 1 in {
+			// Short branch
+			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
+							"j $dst",
+							[(br bb:$dst)]>;
+	}
+	
+	
+//	// Conditional branches
+//	let Uses = [D9] in {
+		
+		def JCC : BRR<0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2 ),
+											"j $cc1 $s1 $s2",
+											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]> { 
+			
+//				bits<4> s2;
+//				bits<4> s1;
+			
+			}
+//		} 
+	}// isBranch, isTerminator
+		
 
 
-let isTerminator = 1, isBranch = 1, isBarrier = 1 in {
-  def JMP : T32<(outs), (ins b_target:$dst),
-                  "b $dst", [(br bb:$dst)]> {
-    bits<24> dst;
-    let Inst{31-28} = 0b0000;
-    let Inst{27-24} = 0b1010;
-    let Inst{23-0} = dst;
-  }
-}
-
-let isTerminator = 1, isBranch = 1 in {
-  def JCC : T32<(outs), (ins cc_val:$cc, b_target:$dst),
-                    "b$cc $dst",  []> {
-  }
-}
+//let isTerminator = 1, isBranch = 1, isBarrier = 1 in {
+//  def JMP : T32<(outs), (ins b_target:$dst),
+//                  "b $dst", [(br bb:$dst)]> {
+//    bits<24> dst;
+//    let Inst{31-28} = 0b0000;
+//    let Inst{27-24} = 0b1010;
+//    let Inst{23-0} = dst;
+//  }
+//}
+//
+//let isTerminator = 1, isBranch = 1, Uses = [D9] in {
+//  def JCC : T32<(outs), (ins cc_val:$cc, b_target:$dst),
+//                    "b$cc $dst",  []> {
+//  }
+//}
 
 
 //===----------------------------------------------------------------------===//

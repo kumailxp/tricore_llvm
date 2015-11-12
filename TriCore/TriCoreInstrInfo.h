@@ -89,12 +89,16 @@ public:
   bool AnalyzeBranch(MachineBasicBlock &MBB,
                        MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,
                        SmallVectorImpl<MachineOperand> &Cond,
-                       bool AllowModify) const override;
+											 std::vector<unsigned> &s1,
+											 std::vector<unsigned> &s2,
+                       bool AllowModify) const;
 
 	unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
 	unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                           MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-                          DebugLoc DL) const override;
+													std::vector<unsigned> &s1,
+													std::vector<unsigned> &s2,
+                          DebugLoc DL) const ;
 };
 }
 

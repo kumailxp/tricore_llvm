@@ -28,6 +28,8 @@ using namespace llvm;
 
 void TriCoreInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << StringRef(getRegisterName(RegNo)).lower();
+
+  outs() <<"printRegName: " <<  StringRef(getRegisterName(RegNo)).lower() << "\n";
 }
 
 void TriCoreInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
@@ -75,46 +77,6 @@ void TriCoreInstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
   }
 }
 
-static StringRef _printCondCode(unsigned e) {
-
-	switch(e){
-	default: return "unknown";
-	case TriCoreCC::COND_E: return "COND_E";
-	case TriCoreCC::COND_NE: return "COND_NE";
-	case TriCoreCC::COND_HS: return "COND_HS";
-	case TriCoreCC::COND_LO: return "COND_LO";
-	case TriCoreCC::COND_GE: return "COND_GE";
-	case TriCoreCC::COND_L: return "COND_L";
-	}
-}
-
-void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
-                                       raw_ostream &O) {
-  unsigned CC = MI->getOperand(OpNo).getImm();
-  outs()<<_printCondCode(CC)<<"\n";
-  switch (CC) {
-  default:
-   llvm_unreachable("Unsupported CC code");
-  case TriCoreCC::COND_E:
-   O << "eq";
-   break;
-  case TriCoreCC::COND_NE:
-   O << "ne";
-   break;
-  case TriCoreCC::COND_HS:
-   O << "hs";
-   break;
-  case TriCoreCC::COND_LO:
-   O << "lo";
-   break;
-  case TriCoreCC::COND_GE:
-   O << "ge";
-   break;
-  case TriCoreCC::COND_L:
-   O << 'l';
-   break;
-  }
-}
 
 
 const char * _condCodeToString(ISD::CondCode CC) {
@@ -139,11 +101,11 @@ const char * _condCodeToString(ISD::CondCode CC) {
   case ISD::SETUNE:        //    1 1 1 0       True if unordered or not equal
     llvm_unreachable("Invalid or unsupported condition code");
     return nullptr;
-    
+
   case ISD::SETTRUE:       //    1 1 1 1       Always true (always folded)
   case ISD::SETTRUE2:      //  1 X 1 1 1       Always true (always folded)
     return "";
-  
+
   // Don't care operations: undefined if the input is a nan.
   case ISD::SETEQ:         //  1 X 0 0 1       True if equal
     return "eq";
@@ -159,6 +121,62 @@ const char * _condCodeToString(ISD::CondCode CC) {
     return "ne";
   }
 }
+
+
+//static StringRef _printCondCode(unsigned e) {
+//
+//	switch(e){
+//	default: return "unknown";
+//	case TriCoreCC::COND_E: return "COND_E";
+//	case TriCoreCC::COND_NE: return "COND_NE";
+//	case TriCoreCC::COND_HS: return "COND_HS";
+//	case TriCoreCC::COND_LO: return "COND_LO";
+//	case TriCoreCC::COND_GE: return "COND_GE";
+//	case TriCoreCC::COND_L: return "COND_L";
+//	}
+//}
+//
+void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
+                                       raw_ostream &O) {
+
+
+
+	const MCOperand &Op = MI->getOperand(OpNo);
+	ISD::CondCode CC = (ISD::CondCode)Op.getImm();
+	const char *Str = _condCodeToString(CC);
+
+	outs() <<"Cond code: " << Str << "\n";
+
+	O << Str;
+
+
+//  unsigned CC = MI->getOperand(OpNo).getImm();
+//  outs()<<_printCondCode(CC)<<"\n";
+//  switch (CC) {
+//  default:
+//   llvm_unreachable("Unsupported CC code");
+//  case TriCoreCC::COND_E:
+//   O << "eq";
+//   break;
+//  case TriCoreCC::COND_NE:
+//   O << "ne";
+//   break;
+//  case TriCoreCC::COND_HS:
+//   O << "hs";
+//   break;
+//  case TriCoreCC::COND_LO:
+//   O << "lo";
+//   break;
+//  case TriCoreCC::COND_GE:
+//   O << "ge";
+//   break;
+//  case TriCoreCC::COND_L:
+//   O << 'l';
+//   break;
+//  }
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // PrintSExtImm<unsigned bits>

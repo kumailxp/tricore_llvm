@@ -46,8 +46,9 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::LOAD_SYM: return "LOAD_SYM";
   case TriCoreISD::MOVEi32:  return "MOVEi32";
   case TriCoreISD::CALL:     return "CALL";
-  //case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
-	//case TriCoreISD::CMP:      return "TriCoreISD::CMP";
+  case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
+	case TriCoreISD::CMP:      return "TriCoreISD::CMP";
+	case TriCoreISD::CMPB:      return "TriCoreISD::CMPB";
   }
 }
 
@@ -68,40 +69,43 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
 
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32, Custom);
-  //setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
+  setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
 }
 
 SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   switch (Op.getOpcode()) {
   default:								    llvm_unreachable("Unimplemented operand");
   case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
-  //case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
+  case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
   }
 }
 
 
-static StringRef printCondCode(ISD::CondCode e) {
-
-	switch(e){
-	default: return "unknown";
-	case ISD::SETEQ: return "SETEQ";
-	case ISD::SETGT: return "SETGT";
-	case ISD::SETGE: return "SETGE";
-	case ISD::SETLT: return "SETLT";
-	case ISD::SETLE: return "SETLE";
-	case ISD::SETNE: return "SETNE";
-	case ISD::SETTRUE2: return "SETTRUE2";
-	}
-}
-
+//static StringRef printCondCode(ISD::CondCode e) {
+//
+//	switch(e){
+//	default: return "unknown";
+//	case ISD::SETEQ: return "SETEQ";
+//	case ISD::SETGT: return "SETGT";
+//	case ISD::SETGE: return "SETGE";
+//	case ISD::SETLT: return "SETLT";
+//	case ISD::SETLE: return "SETLE";
+//	case ISD::SETNE: return "SETNE";
+//	case ISD::SETTRUE2: return "SETTRUE2";
+//	}
+//}
+//
 static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
                        ISD::CondCode CC,
                        SDLoc dl, SelectionDAG &DAG) {
   // FIXME: Handle bittests someday
   assert(!LHS.getValueType().isFloatingPoint() && "We don't handle FP yet");
+//
+//  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
+//  outs()<<printCondCode(CC)<<"\n";
 
-  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
-  outs()<<printCondCode(CC)<<"\n";
+  ISD::CondCode TCC = ISD::SETCC_INVALID;
+//	outs()<<printCondCode(CC)<<"\n";
   switch (CC) {
   default: llvm_unreachable("Invalid integer condition!");
   case ISD::SETGE:
@@ -110,14 +114,14 @@ static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &Targ
     if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
       LHS = RHS;
       RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-      TCC = TriCoreCC::COND_L;
+      TCC =  ISD::SETGE;
       break;
     }
-    TCC = TriCoreCC::COND_GE;
+    TCC = ISD::SETGE;
     break;
   case ISD::SETGT:
-    std::swap(LHS, RHS);        // FALLTHROUGH#
-    TCC = TriCoreCC::COND_GE;
+    //std::swap(LHS, RHS);        // FALLTHROUGH#
+    TCC = ISD::SETGT;
 		break;
 
   }
@@ -127,10 +131,16 @@ static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &Targ
 //    SDVTList CompareVT = DAG.getVTList(CompareTys);
   TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
 //  return DAG.getNode(TriCoreISD::CMP, dl, CompareVT, CompareOps);
-  return DAG.getNode(TriCoreISD::CMP, dl, MVT::Glue, LHS, RHS);
+
+  SDValue tmp = DAG.getNode(TriCoreISD::CMPB, dl, MVT::Other, LHS, RHS);
+  outs()<< "Result No:" << tmp.getResNo() << "\n";
+
+  tmp.dump();
+
+  return DAG.getNode(TriCoreISD::CMPB, dl,MVT::Other, LHS, RHS);
 }
-
-
+//
+//
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
@@ -144,8 +154,23 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
 
   outs()<<"TriCoreTargetLowering::LowerBR_CC\n";
 
-  return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
-                     Chain, Dest, TargetCC, Flag);
+  //RHS = DAG.getConstant(43, dl, MVT::i32);
+  //LHS = DAG.getConstant(43, dl, MVT::i32);
+
+  outs()<< "Chain Node 0 Type:" << Chain.getValueType().getEVTString()<< "\n";
+  outs()<< "CondCode Node 1 Type:" << Op.getOperand(1).getValueType().getEVTString()<< "\n";
+
+  outs()<< "LHS Type:" << LHS.getValueType().getEVTString() << "\n";
+  outs()<< "RHS Type:" << RHS.getValueType().getEVTString() << "\n";
+  outs()<< "Dest Node 0 Type:" << Dest.getValueType().getEVTString()<< "\n";
+    SDValue CompareOps[] = {Chain, TargetCC, Dest, LHS, RHS};
+    EVT CompareTys[] = { MVT::Other };
+    SDVTList CompareVT = DAG.getVTList(CompareTys);
+
+  return DAG.getNode(TriCoreISD::BR_CC, dl, CompareVT,
+  		CompareOps);
+//  return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
+//                     Chain, Dest, TargetCC, Flag);
 }
 
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const
