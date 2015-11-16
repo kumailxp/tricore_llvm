@@ -19,13 +19,14 @@ def SDT_TriCoreCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 //def SDT_TriCoreBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
 //                                                  SDTCisVT<1, i32>]>;
 
-def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
+//def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
+//																									 SDTCisVT<1, OtherVT>,
+//																									 SDTCisSameAs<2, 3>,
+//																									 SDTCisInt<2> ]>;
+
+def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, i32>,
 																									 SDTCisVT<1, OtherVT>,
-																									 SDTCisSameAs<2, 3>,
-																									 SDTCisInt<2>
-                                                   
-																						
-																									]>;
+																									 SDTCisInt<2> ]>;
 
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
 
@@ -103,14 +104,14 @@ def SUBri : SC<0x8B, (outs AddrRegs:$d), (ins DataRegs:$src1, s8imm:$imm),
 //===----------------------------------------------------------------------===//
 
 def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
-				"mov $d, $s2", [ (set DataRegs:$d, DataRegs:$s2) ]>;
+				"mov $d, $s2", [ ]>;
 
 //def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
 //				"movxx $d, $s2", [  ]>;
 //def MOVaRR : RR<0x01, 0x63, (outs AddrRegsOthers:$d), (ins DataRegs:$s2),
 //				"mov.a $d, $s2", [ ]>;
-//def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegsOthers:$s2),
-//				"mov.d $d, $s2", [ ]>;
+def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
+				"mov.d $d, $s2", [  ]>;
 ////def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
 ////				"mov.aa $d, $s2", [(set i32:$d, i32:$s2)]>;
 //
@@ -145,7 +146,13 @@ class MOV<bits<8> opcode, string opstr, dag ins, list<dag>pattern>
 }
 
 def MOVrlc : MOV<0x3B,"movw", (ins i32imm:$imm) , [(set i32:$dst, i32imm_lo:$imm)]>;
-def MOVHIi16 : MOV<0x7B, "movh", (ins i32imm:$imm), [/* No Pattern */]>;
+//def MOVHIi16 : MOV<0x7B, "movh", (ins i32imm:$imm), [/* No Pattern */]>;
+
+def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$imm), [/* No Pattern */]>
+{
+	let Constraints = "$fakesrc = $dst";
+}
+
 
 //def MOVrlc : RLC<0x3B, (outs DataRegs:$dst), (ins i32imm:$const16),
 //				"mov $dst, $const16", [(set i32:$dst, i32imm_lo:$const16)]>;
@@ -211,9 +218,9 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [A11] in {
 //}
 
 def CMPri  : RC<0x0B, 0x14 ,
-                   (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-                   "cmp $d, $s1, $s2",
-                   [(set i32:$d, (TriCorecmpb i32:$s1, i32:$s2))]> {
+                   (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+                   "cmp $d, $s1, $const9",
+                   [(set i32:$d, (TriCorecmpb i32:$s1, immSExt9:$const9))]> {
 	
 	
 
@@ -221,10 +228,10 @@ def CMPri  : RC<0x0B, 0x14 ,
 //
 
 def CMPrr  : RR<0x0, 0x14,
-                   (outs), (ins DataRegs:$s1, DataRegs:$s2),
-                   "cmp $s1, $s2",
-                   [(TriCorecmp DataRegs:$s1, DataRegs:$s2)]> {
-			let Defs = [D9];
+                   (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+                   "cmp $d, $s1, $s2",
+                   [(set i32:$d, (TriCorecmpb DataRegs:$s1, DataRegs:$s2))]> {
+
 	
 }
 
@@ -243,10 +250,12 @@ let isBranch =1, isTerminator = 1 in {
 //	// Conditional branches
 //	let Uses = [D9] in {
 		
-		def JCC : BRR<0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2 ),
-											"j $cc1 $s1 $s2",
-											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]> { 
-			
+//		def JCC : BRR<0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2 ),
+//											"j$cc1 $s1, $s2, $disp15",
+//											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]> { 
+def JCC : BRR<0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1 ),
+											"j$cc1 $s1, $disp15",
+											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1)]> { 
 //				bits<4> s2;
 //				bits<4> s1;
 			

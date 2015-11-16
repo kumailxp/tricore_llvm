@@ -45,23 +45,23 @@ TriCoreInstrInfo::TriCoreInstrInfo()
 /// the destination along with the FrameIndex of the loaded stack slot.  If
 /// not, return 0.  This predicate must return 0 if the instruction has
 /// any side effects other than loading from the stack slot.
-unsigned
-TriCoreInstrInfo::isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const{
-  assert(0 && "Unimplemented");
-  return 0;
-}
+//unsigned
+//TriCoreInstrInfo::isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex) const{
+//  assert(0 && "Unimplemented");
+//  return 0;
+//}
   
   /// isStoreToStackSlot - If the specified machine instruction is a direct
   /// store to a stack slot, return the virtual or physical register number of
   /// the source reg along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than storing to the stack slot.
-unsigned
-TriCoreInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
-                                   int &FrameIndex) const {
-  assert(0 && "Unimplemented");
-  return 0;
-}
+//unsigned
+//TriCoreInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
+//                                   int &FrameIndex) const {
+//  assert(0 && "Unimplemented");
+//  return 0;
+//}
 
 void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                  MachineBasicBlock::iterator I, DebugLoc DL,
@@ -74,28 +74,30 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 	bool DataRegsDest = TriCore::DataRegsRegClass.contains(DestReg);
 	bool DataRegsSrc = TriCore::DataRegsRegClass.contains(SrcReg);
 
+	outs()<<"==TriCoreInstrInfo::copyPhysReg==\n";
 	if (DataRegsDest && DataRegsSrc) {
+		outs()<<"==DataRegsDest && DataRegsSrc==\n";
 		BuildMI(MBB, I, DL, get(TriCore::MOVrr), DestReg)
 									.addReg(SrcReg, getKillRegState(KillSrc));
 		return;
 	}
 
-//	bool AddrDest = TriCore::AddrRegsOthersRegClass.contains(DestReg);
-//	bool AddrSrc = TriCore::AddrRegsOthersRegClass.contains(SrcReg);
-//
-//	unsigned Opc = 0;
-//	if (DataRegsDest && AddrSrc)
-//		Opc = TriCore::MOVdRR;
+	bool AddrDest = TriCore::AddrRegsRegClass.contains(DestReg);
+	bool AddrSrc = TriCore::AddrRegsRegClass.contains(SrcReg);
+
+	unsigned Opc = 0;
+	if (DataRegsDest && AddrSrc)
+		Opc = TriCore::MOVdRR;
 //	else if (AddrDest && DataRegsSrc)
 //		Opc = TriCore::MOVaRR;
 //	else if (AddrDest && AddrSrc)
 //		Opc = TriCore::MOVaaRR;
-//
-//	if (Opc) {
-//		MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
-//		MIB.addReg(SrcReg, getKillRegState(KillSrc));
-//		return;
-//	}
+
+	if (Opc) {
+		MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
+		MIB.addReg(SrcReg, getKillRegState(KillSrc));
+		return;
+	}
 
 }
 
@@ -207,8 +209,10 @@ unsigned TriCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,
   outs()<< "InsertBranch\n";
   // Insert any conditional branch.
   if (Cond.size() > 0) {
-    BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
-    																							.addReg(s1[0]).addReg(s2[0]);
+//    BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
+//    																							.addReg(s1[0]).addReg(s2[0]);
+  	BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
+  	    																							.addReg(s1[0]);
     NumInserted++;
   }
 

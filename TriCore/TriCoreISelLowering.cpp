@@ -163,7 +163,8 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   outs()<< "LHS Type:" << LHS.getValueType().getEVTString() << "\n";
   outs()<< "RHS Type:" << RHS.getValueType().getEVTString() << "\n";
   outs()<< "Dest Node 0 Type:" << Dest.getValueType().getEVTString()<< "\n";
-    SDValue CompareOps[] = {Chain, TargetCC, Dest, LHS, RHS};
+//    SDValue CompareOps[] = {Chain, TargetCC, Dest, LHS, RHS};
+    SDValue CompareOps[] = {Chain, TargetCC, Dest, Flag};
     EVT CompareTys[] = { MVT::Other };
     SDVTList CompareVT = DAG.getVTList(CompareTys);
 

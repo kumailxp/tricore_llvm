@@ -92,6 +92,7 @@ SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
   uint64_t ImmLo = (ImmVal & LoMask);
   uint64_t ImmHi = (ImmVal & HiMask);
   SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
+  SDValue ImmValNode = CurDAG->getTargetConstant(ImmVal, N, MVT::i32);
   MachineSDNode *Move;
   if(ImmVal < 65535) {
   	Move =
@@ -109,10 +110,10 @@ SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
     outs()<< "ImmHi >> 16: " << (ImmHi >> 16) <<"\n";
     outs()<< "ImmLo: " << ImmLo <<"\n";
     MachineSDNode *MoveHi;
-    MoveHi = CurDAG->getMachineNode(TriCore::MOVHIi16, N, MVT::i32, ConstHi);
-		Move = CurDAG->getMachineNode(TriCore::ADDi, N, MVT::i32, SDValue(MoveHi, 0),
-																		ConstLo);
-
+    //MoveHi = CurDAG->getMachineNode(TriCore::MOVHIi16, N, MVT::i32, ConstHi);
+		//Move = CurDAG->getMachineNode(TriCore::ADDi, N, MVT::i32, SDValue(MoveHi, 0),
+		//																ConstLo);
+		Move = CurDAG->getMachineNode(TriCore::MOVi32, N, MVT::i32, ImmValNode);
     outs()<< Move <<"\n";
   }
 
@@ -154,6 +155,9 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
   switch (N->getOpcode()) {
   case ISD::Constant:
     return SelectMoveImmediate(N);
+  case ISD::STORE:
+  	outs().changeColor(raw_ostream::GREEN) << "This is a store!\n";
+  	outs().changeColor(raw_ostream::WHITE);
   //case ISD::BR_CC:
   //  return SelectConditionalBranch(N);
   }
