@@ -21,6 +21,8 @@
 
 #include "TriCoreInstrInfo.h"
 
+#define DEBUG_TYPE "tricore-isel"
+
 using namespace llvm;
 
 /// TriCoreDAGToDAGISel - TriCore specific code to select TriCore machine
@@ -53,9 +55,12 @@ private:
 
 bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
   if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
-    EVT PtrVT = getTargetLowering()->getPointerTy(*TM.getDataLayout());
+//    EVT PtrVT = getTargetLowering()->getPointerTy(*TM.getDataLayout());
+    EVT PtrVT = getTargetLowering()->getPointerTy(CurDAG->getDataLayout());
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
     Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
+    outs().changeColor(raw_ostream::RED)<<"Selecting Frame!\n";
+    outs().changeColor(raw_ostream::WHITE);
     return true;
   }
   if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
@@ -152,17 +157,47 @@ SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N) {
 }
 
 SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
+
+	SDLoc dl(N);
+
+  // Dump information about the Node being selected
+  DEBUG(errs().changeColor(raw_ostream::GREEN) << "Selecting: ");
+  DEBUG(N->dump(CurDAG));
+  DEBUG(errs() << "\n");
+
   switch (N->getOpcode()) {
   case ISD::Constant:
     return SelectMoveImmediate(N);
   case ISD::STORE:
   	outs().changeColor(raw_ostream::GREEN) << "This is a store!\n";
   	outs().changeColor(raw_ostream::WHITE);
+  	break;
   //case ISD::BR_CC:
   //  return SelectConditionalBranch(N);
+  case ISD::FrameIndex: {
+   	//FrameIndexSDNode *FSDNode = cast<FrameIndexSDNode>(N);
+  	int FI = cast<FrameIndexSDNode>(N)->getIndex();
+  	SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
+  	if (N->hasOneUse()) {
+
+  	    	return CurDAG->SelectNodeTo(N, TriCore::ADDri, MVT::i32, TFI,
+  																			CurDAG->getTargetConstant(0, dl, MVT::i32));
+
+  	    }
+  	return CurDAG->getMachineNode(TriCore::ADDri, dl, MVT::i32, TFI,
+																CurDAG->getTargetConstant(0, dl, MVT::i32));
+  	}
   }
 
-  return SelectCode(N);
+  SDNode *ResNode = SelectCode(N);
+
+	DEBUG(errs() << "=> ");
+	if (ResNode == nullptr || ResNode == N)
+		DEBUG(N->dump(CurDAG));
+	else
+		DEBUG(ResNode->dump(CurDAG));
+	DEBUG(errs() << "\n");
+  return ResNode;
 }
 /// createTriCoreISelDag - This pass converts a legalized DAG into a
 /// TriCore-specific DAG, ready for instruction scheduling.

@@ -82,6 +82,8 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                           RegScavenger *RS) const {
   MachineInstr &MI = *II;
   const MachineFunction &MF = *MI.getParent()->getParent();
+  DebugLoc dl = MI.getDebugLoc();
+  MachineBasicBlock &MBB = *MI.getParent();
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineOperand &FIOp = MI.getOperand(FIOperandNum);
   unsigned FI = FIOp.getIndex();
@@ -92,6 +94,34 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   default:
     // Not supported yet.
     return;
+  case TriCore::ADDri: {
+    	//const LEGFrameLowering *TFI = getFrameLowering(MF);
+    	int Offset = MFI->getObjectOffset(FI);
+ 	    Offset += MF.getFrameInfo()->getStackSize();
+  	  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+
+    	outs().changeColor(raw_ostream::GREEN,1)<<"Offset: " << Offset << "\n" ;
+    	outs().changeColor(raw_ostream::WHITE,0);
+    	const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+    	MI.setDesc(TII.get(TriCore::MOVdRR));
+    	MI.getOperand(FIOperandNum).ChangeToRegister(TriCore::A10, false);
+
+    	if (Offset == 0)
+  			return;
+
+  		// We need to materialize the offset via add instruction.
+  		unsigned DstReg = MI.getOperand(0).getReg();
+  		if (Offset < 0)
+  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
+  				.addReg(DstReg).addImm(-Offset);
+  		else
+  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
+  				.addReg(DstReg).addImm(Offset);
+
+
+    	return;
+    }
+
   case TriCore::LDR:
   case TriCore::STR:
     ImmOpIdx = FIOperandNum + 1;

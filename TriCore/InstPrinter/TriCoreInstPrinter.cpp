@@ -29,7 +29,7 @@ using namespace llvm;
 void TriCoreInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << StringRef(getRegisterName(RegNo)).lower();
 
-  outs() <<"printRegName: " <<  StringRef(getRegisterName(RegNo)).lower() << "\n";
+  //outs() <<"printRegName: " <<  StringRef(getRegisterName(RegNo)).lower() << "\n";
 }
 
 void TriCoreInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
@@ -231,16 +231,34 @@ void TriCoreInstPrinter::printCondCode(const MCInst *MI, unsigned OpNum,
 // Print a 'memsrc' operand which is a (Register, Offset) pair.
 void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
                                          raw_ostream &O) {
-  const MCOperand &Op1 = MI->getOperand(OpNum);
-  const MCOperand &Op2 = MI->getOperand(OpNum + 1);
-  O << "[";
-  printRegName(O, Op1.getReg());
+//  const MCOperand &Op1 = MI->getOperand(OpNum);
+//  const MCOperand &Op2 = MI->getOperand(OpNum + 1);
+//  O << "[";
+//  printRegName(O, Op1.getReg());
+//
+//  unsigned Offset = Op2.getImm();
+//  if (Offset) {
+//    O << ", #" << Offset;
+//  }
+//  O << "]";
 
-  unsigned Offset = Op2.getImm();
-  if (Offset) {
-    O << ", #" << Offset;
-  }
-  O << "]";
+  const MCOperand &Base = MI->getOperand(OpNum);
+	const MCOperand &Disp = MI->getOperand(OpNum+1);
+
+  if (!Base.getReg())
+      O << '&';
+
+    if (Disp.isExpr())
+      Disp.getExpr()->print(O, &MAI);
+    else {
+      assert(Disp.isImm() && "Expected immediate in displacement field");
+      O << Disp.getImm();
+    }
+
+    // Print register base field
+    if (Base.getReg())
+      O << '(' << getRegisterName(Base.getReg()) << ')';
+
 }
 
 void TriCoreInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,

@@ -53,7 +53,7 @@ def cc : Operand<i32> {
 // ADD Instructions
 //===----------------------------------------------------------------------===//
 def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$src1, DataRegs:$src2),
-			  "add $d, $src1",
+			  "add $d, $src1, $src2",
 						[(set DataRegs:$d, (add DataRegs:$src1, DataRegs:$src2) )]> {
 	
 	
@@ -66,12 +66,17 @@ def ADDri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$src1, s9imm:$imm),
 	
 }
 
-def ADDi : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$src1, s16imm:$imm),
-			  "add $d, $src1, $imm",
-						[(set i32:$d, (add i32:$src1, immSExt16:$imm) )]> {
-	
-	
-}
+//def ADDi : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$src1, s16imm:$imm),
+//			  "add $d, $src1, $imm",
+//						[(set DataRegs:$d, (add i32:$src1, immSExt16:$imm) )]> {
+//	
+//}
+
+//def ADDi : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$src1, i32imm:$const),
+//			  "add $d, $src1, $const",
+//						[(set DataRegs:$d, (add DataRegs:$src1, imm:$const) )]> {
+//	
+//}
 
 //
 def SUBrr : RR<0x01, 0x02, (outs AddrRegs:$d), (ins AddrRegs:$src1, AddrRegs:$src2),
@@ -175,7 +180,7 @@ def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
 
 def STR : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
                   "str $s1_d, $off16",
-                  [(store i32:$s1_d, addr:$off16)]> {
+                  [(store DataRegs:$s1_d, addr:$off16)]> {
 }
 
 //===----------------------------------------------------------------------===//

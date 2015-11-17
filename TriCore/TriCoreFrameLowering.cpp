@@ -136,6 +136,8 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
         .setMIFlag(MachineInstr::FrameSetup);
   }
 
+  outs() << "ends\n";
+
 }
 
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
@@ -145,10 +147,12 @@ void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   DebugLoc dl = MBBI->getDebugLoc();
   uint64_t StackSize = computeStackSize(MF);
+  outs() << "emitEpilogue start\n";
   if (!StackSize) {
     return;
   }
 
+  outs() << "emitEpilogue start\n";
 
   // Restore the stack pointer to what it was at the beginning of the function.
   unsigned StackReg = TriCore::A10;
@@ -164,6 +168,8 @@ void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
         .addImm(StackSize)
         .setMIFlag(MachineInstr::FrameSetup);
   }
+
+  outs() << "emitEpilogue ends\n";
 
 }
 
