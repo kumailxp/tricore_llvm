@@ -52,17 +52,36 @@ def cc : Operand<i32> {
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
-def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$src1, DataRegs:$src2),
-			  "add $d, $src1, $src2",
-						[(set DataRegs:$d, (add DataRegs:$src1, DataRegs:$src2) )]> {
-	
-	
+
+def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+				  "add $d, $s1, $s2",
+							[(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]> {
+		
+		
+	}
+
+def ADDri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+				  "add $d, $s1, $const9",
+							[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]> {
+
 }
 
-def ADDri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$src1, s9imm:$imm),
-			  "add $d, $src1, $imm",
-						[(set DataRegs:$d, (add DataRegs:$src1, immSExt9:$imm) )]> {
-	
+let Defs=[PSW], hasSideEffects=1 in {
+
+	def ADDCrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+				  "addc $d, $s1, $s2",
+							[(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2) ),
+							 (implicit PSW)]> {
+		
+		
+	}
+
+	def ADDCri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+				  "addc $d, $s1, $const9",
+							[(set DataRegs:$d, (addc DataRegs:$s1, immSExt9:$const9)),
+							 (implicit PSW)]> {
+
+	}
 	
 }
 
@@ -87,11 +106,31 @@ def SUBrr : RR<0x01, 0x02, (outs AddrRegs:$d), (ins AddrRegs:$src1, AddrRegs:$sr
 }
 //
 def SUBri : SC<0x8B, (outs AddrRegs:$d), (ins DataRegs:$src1, s8imm:$imm),
-			  "sub.a $d, $src1, $imm",
+			  "sub.aa $d, $src1, $imm",
 						[(set AddrRegs:$d, (sub DataRegs:$src1, immZExt8:$imm) )]> {
-	
-	
 }
+
+
+def SUBria : SC<0x8B, (outs AddrRegs:$d), (ins AddrRegs:$src1, s8imm:$imm),
+			  "sub.a $d, $imm",
+						[(set AddrRegs:$d, (sub AddrRegs:$src1, immZExt8:$imm) )]> {
+	
+		let Constraints = "$src1 = $d";
+}
+
+let Defs=[PSW] in {
+	def MULrr : RR2<0x73, 0x00A, (outs DataRegs:$d), (ins DataRegs:$s2, DataRegs:$s1),
+					"mul $d, $s2, $s1",
+							[(set DataRegs:$d, (mul DataRegs:$s1, DataRegs:$s2) )]>;
+	
+	def MULri : RC<0x53, 0x001, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+					"mul $d, $s1, $const9",
+							[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]> {
+	
+	}
+}
+
+
 
 //===----------------------------------------------------------------------===//
 // Mov Instructions
@@ -120,8 +159,8 @@ def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
 ////def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
 ////				"mov.aa $d, $s2", [(set i32:$d, i32:$s2)]>;
 //
-//def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
-//				"mov.aa $d, $s2", [ ]>;
+def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
+				"mov.aa $d, $s2", [ ]>;
 //def MOVaSRC : SRC<0xA0, (outs AddrRegsOthers:$dst), (ins s4imm:$src1),
 //				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, immZExt4:$src1)]>;
 //
@@ -173,13 +212,15 @@ def MOVi32 : InstTriCore<(outs DataRegs:$dst), (ins i32imm:$src), "",
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
+let mayLoad = 1 in {
 def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
                    "ldr $s1_d, $off16",
-                   [(set i32:$s1_d, (load addr:$off16))]> {
+                   [(set DataRegs:$s1_d, (load addr:$off16))]> {
+}
 }
 
 def STR : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
-                  "str $s1_d, $off16",
+                  "str $off16, $s1_d",
                   [(store DataRegs:$s1_d, addr:$off16)]> {
 }
 

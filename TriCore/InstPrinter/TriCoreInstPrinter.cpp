@@ -27,7 +27,7 @@ using namespace llvm;
 #include "TriCoreGenAsmWriter.inc"
 
 void TriCoreInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
-  OS << StringRef(getRegisterName(RegNo)).lower();
+  OS << "%" <<StringRef(getRegisterName(RegNo)).lower();
 
   //outs() <<"printRegName: " <<  StringRef(getRegisterName(RegNo)).lower() << "\n";
 }
@@ -239,25 +239,28 @@ void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
 //  unsigned Offset = Op2.getImm();
 //  if (Offset) {
 //    O << ", #" << Offset;
-//  }
-//  O << "]";
+	//  }
+	//  O << "]";
 
-  const MCOperand &Base = MI->getOperand(OpNum);
+	const MCOperand &Base = MI->getOperand(OpNum);
 	const MCOperand &Disp = MI->getOperand(OpNum+1);
 
-  if (!Base.getReg())
-      O << '&';
+	if (!Base.getReg())
+		O << '&';
 
-    if (Disp.isExpr())
-      Disp.getExpr()->print(O, &MAI);
-    else {
-      assert(Disp.isImm() && "Expected immediate in displacement field");
-      O << Disp.getImm();
-    }
 
-    // Print register base field
-    if (Base.getReg())
-      O << '(' << getRegisterName(Base.getReg()) << ')';
+
+	// Print register base field
+	if (Base.getReg())
+			O << "[%" << StringRef(getRegisterName(Base.getReg())).lower() << ']';
+
+	if (Disp.isExpr())
+		Disp.getExpr()->print(O, &MAI);
+	else {
+		assert(Disp.isImm() && "Expected immediate in displacement field");
+		if (!(Disp.getImm()==0))
+				O << " " << Disp.getImm();
+	}
 
 }
 
@@ -270,7 +273,7 @@ void TriCoreInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   }
 
   if (Op.isImm()) {
-    O << "#" << Op.getImm();
+    O << Op.getImm();
     return;
   }
 

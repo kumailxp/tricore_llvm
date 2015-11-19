@@ -70,7 +70,7 @@ def subreg_hi : SubRegIndex<16> {let Namespace = "TriCore";}
 
 
 //Program Status Information Registers
-def PCW : TriCorePSReg<0, "PCW">, DwarfRegNum<[40]>;
+def PSW : TriCorePSReg<0, "PSW">, DwarfRegNum<[40]>;
 def PCXI : TriCorePSReg<1, "PCXI">, DwarfRegNum<[41]>;
 def PC : TriCorePSReg<2, "PC">, DwarfRegNum<[42]>;
 
@@ -113,4 +113,4 @@ def AddrRegsOthers : RegisterClass<"TriCore", [i32], 32, (add
 //		E12, E14)>;
 
 def PSRegs : RegisterClass<"TriCore", [i32], 32, (add
-		PCW, PCXI, PC)>;
+		PSW, PCXI, PC)>;

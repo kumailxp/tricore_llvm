@@ -59,8 +59,8 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
     EVT PtrVT = getTargetLowering()->getPointerTy(CurDAG->getDataLayout());
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
     Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
-    outs().changeColor(raw_ostream::RED)<<"Selecting Frame!\n";
-    outs().changeColor(raw_ostream::WHITE);
+//    outs().changeColor(raw_ostream::RED)<<"Selecting Frame!\n";
+//    outs().changeColor(raw_ostream::WHITE);
     return true;
   }
   if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
@@ -168,10 +168,10 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
   switch (N->getOpcode()) {
   case ISD::Constant:
     return SelectMoveImmediate(N);
-  case ISD::STORE:
-  	outs().changeColor(raw_ostream::GREEN) << "This is a store!\n";
-  	outs().changeColor(raw_ostream::WHITE);
-  	break;
+//  case ISD::STORE:
+//  	outs().changeColor(raw_ostream::GREEN) << "This is a store!\n";
+//  	outs().changeColor(raw_ostream::WHITE);
+//  	break;
   //case ISD::BR_CC:
   //  return SelectConditionalBranch(N);
   case ISD::FrameIndex: {
@@ -187,6 +187,15 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
   	return CurDAG->getMachineNode(TriCore::ADDri, dl, MVT::i32, TFI,
 																CurDAG->getTargetConstant(0, dl, MVT::i32));
   	}
+//  case ISD::LOAD:
+//  	outs().changeColor(raw_ostream::BLUE,1) <<"This is a load\n";
+//  	outs().changeColor(raw_ostream::WHITE,0);
+//  	break;
+  case ISD::ADD:
+  	outs().changeColor(raw_ostream::BLUE,1) <<"This is a ADDC\n";
+		outs().changeColor(raw_ostream::WHITE,0);
+
+		break;
   }
 
   SDNode *ResNode = SelectCode(N);

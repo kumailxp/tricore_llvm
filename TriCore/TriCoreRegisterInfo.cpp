@@ -54,7 +54,7 @@ BitVector TriCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const 
   Reserved.set(TriCore::PCXI);
   Reserved.set(TriCore::A10);
   Reserved.set(TriCore::A11);
-  Reserved.set(TriCore::PCW);
+  Reserved.set(TriCore::PSW);
   return Reserved;
 }
 
@@ -87,9 +87,14 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   MachineOperand &FIOp = MI.getOperand(FIOperandNum);
   unsigned FI = FIOp.getIndex();
-
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  unsigned BasePtr = (TFI->hasFP(MF) ? TriCore::A14 : TriCore::A10);
   // Determine if we can eliminate the index from this kind of instruction.
   unsigned ImmOpIdx = 0;
+
+
+
+
   switch (MI.getOpcode()) {
   default:
     // Not supported yet.
@@ -100,23 +105,25 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
  	    Offset += MF.getFrameInfo()->getStackSize();
   	  Offset += MI.getOperand(FIOperandNum + 1).getImm();
 
+  	  Offset = -Offset;
     	outs().changeColor(raw_ostream::GREEN,1)<<"Offset: " << Offset << "\n" ;
     	outs().changeColor(raw_ostream::WHITE,0);
     	const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
     	MI.setDesc(TII.get(TriCore::MOVdRR));
-    	MI.getOperand(FIOperandNum).ChangeToRegister(TriCore::A10, false);
+    	MI.getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
 
     	if (Offset == 0)
   			return;
 
   		// We need to materialize the offset via add instruction.
   		unsigned DstReg = MI.getOperand(0).getReg();
-  		if (Offset < 0)
-  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
-  				.addReg(DstReg).addImm(-Offset);
-  		else
+  		if (Offset < 0) {
   			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
   				.addReg(DstReg).addImm(Offset);
+  		}
+  		else
+  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
+  				.addReg(DstReg).addImm(-Offset);
 
 
     	return;
@@ -131,14 +138,14 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   // FIXME: check the size of offset.
   MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
   int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize() + ImmOp.getImm();
-  FIOp.ChangeToRegister(TriCore::A10, false);
-  ImmOp.setImm(Offset);
+  FIOp.ChangeToRegister(BasePtr, false);
+  ImmOp.setImm(-Offset);
 }
 
 unsigned TriCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   //const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   //return TFI->hasFP(MF) ? (TriCore::A11) :
   //                        (TriCore::A10);
-	return TriCore::A10;
+	return TriCore::A14;
 }
 

@@ -29,6 +29,9 @@ public:
   /// the function.
   void emitPrologue(MachineFunction &MF,
                     MachineBasicBlock &MBB) const override;
+  void emitPrologue_thesis(MachineFunction &MF,
+                      MachineBasicBlock &MBB) const;
+
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,

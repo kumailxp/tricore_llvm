@@ -90,8 +90,8 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 		Opc = TriCore::MOVdRR;
 //	else if (AddrDest && DataRegsSrc)
 //		Opc = TriCore::MOVaRR;
-//	else if (AddrDest && AddrSrc)
-//		Opc = TriCore::MOVaaRR;
+	else if (AddrDest && AddrSrc)
+		Opc = TriCore::MOVaaRR;
 
 	if (Opc) {
 		MachineInstrBuilder MIB = BuildMI(MBB, I, DL, get(Opc), DestReg);
@@ -106,11 +106,24 @@ void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          unsigned SrcReg, bool isKill,
                                          int FrameIndex,
                                          const TargetRegisterClass *RC,
-                                         const TargetRegisterInfo *TRI) const
+																				 const TargetRegisterInfo *TRI) const
 {
-  BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STR))
-    .addReg(SrcReg, getKillRegState(isKill))
-    .addFrameIndex(FrameIndex).addImm(0);
+
+	DebugLoc DL;
+	if (I != MBB.end()) DL = I->getDebugLoc();
+	MachineFunction &MF = *MBB.getParent();
+	MachineFrameInfo &MFI = *MF.getFrameInfo();
+
+	MachineMemOperand *MMO =
+			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+					MachineMemOperand::MOStore,
+					MFI.getObjectSize(FrameIndex),
+					MFI.getObjectAlignment(FrameIndex));
+
+
+	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STR))
+	.addReg(SrcReg, getKillRegState(isKill))
+	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
 }
 
 void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
@@ -119,8 +132,21 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const
 {
-  BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDR), DestReg)
-      .addFrameIndex(FrameIndex).addImm(0);
+
+	DebugLoc DL;
+	if (I != MBB.end()) DL = I->getDebugLoc();
+	MachineFunction &MF = *MBB.getParent();
+	MachineFrameInfo &MFI = *MF.getFrameInfo();
+
+	MachineMemOperand *MMO =
+			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+					MachineMemOperand::MOLoad,
+					MFI.getObjectSize(FrameIndex),
+					MFI.getObjectAlignment(FrameIndex));
+
+
+	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDR), DestReg)
+      .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
 }
 
 //Branch Analysis

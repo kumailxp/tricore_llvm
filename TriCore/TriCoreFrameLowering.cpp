@@ -40,8 +40,12 @@ TriCoreFrameLowering::TriCoreFrameLowering()
 
 
 bool TriCoreFrameLowering::hasFP(const MachineFunction &MF) const {
+
+	const MachineFrameInfo *MFI = MF.getFrameInfo();
+
   return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-         MF.getFrameInfo()->hasVarSizedObjects();
+         MF.getFrameInfo()->hasVarSizedObjects() ||
+				 MFI->isFrameAddressTaken();
 }
 
 
@@ -64,6 +68,13 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   const uint64_t MaxSubImm = 0xfff;
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+
+  if (TFI->hasFP(MF))
+  	outs()<<"Frame Taken!!\n";
+
+
+
   if (Offset <= MaxSubImm) {
     // The stack offset fits in the ADD/SUB instruction.
     return 0;
@@ -98,18 +109,89 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
 //      MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
 //}
 /////////////////////////////////////////////////////////
+
+
+
+void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
+                                       MachineBasicBlock &MBB) const {
+  assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
+  MachineFrameInfo *MFI = MF.getFrameInfo();
+  //MSP430MachineFunctionInfo *MSP430FI = MF.getInfo<MSP430MachineFunctionInfo>();
+  const TriCoreInstrInfo &TII =
+      *static_cast<const TriCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
+
+  MachineBasicBlock::iterator MBBI = MBB.begin();
+  DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
+
+  // Get the number of bytes to allocate from the FrameInfo.
+  uint64_t StackSize = MFI->getStackSize();
+
+  uint64_t NumBytes = 0;
+  if (hasFP(MF)) {
+    // Calculate required stack adjustment
+//    uint64_t FrameSize = StackSize - 2;
+//    NumBytes = FrameSize - MSP430FI->getCalleeSavedFrameSize();
+
+    uint64_t FrameSize = StackSize;
+		NumBytes = FrameSize;
+
+    // Get the offset of the stack slot for the EBP register... which is
+    // guaranteed to be the last slot by processFunctionBeforeFrameFinalized.
+    // Update the frame offset adjustment.
+    MFI->setOffsetAdjustment(-NumBytes);
+
+    // Save FP into the appropriate stack slot...
+    //BuildMI(MBB, MBBI, DL, TII.get(MSP430::PUSH16r))
+    //  .addReg(MSP430::FP, RegState::Kill);
+
+    // Update FP with the new base value...
+    BuildMI(MBB, MBBI, DL, TII.get(TriCore::MOVaaRR), TriCore::A14)
+      .addReg(TriCore::A10);
+
+    // Mark the FramePtr as live-in in every block except the entry.
+    for (MachineFunction::iterator I = std::next(MF.begin()), E = MF.end();
+         I != E; ++I)
+      I->addLiveIn(TriCore::A14);
+
+  } else
+  	 NumBytes = StackSize;
+//    NumBytes = StackSize - MSP430FI->getCalleeSavedFrameSize();
+
+  // Skip the callee-saved push instructions.
+//  while (MBBI != MBB.end() && (MBBI->getOpcode() == MSP430::PUSH16r))
+//    ++MBBI;
+
+  if (MBBI != MBB.end())
+    DL = MBBI->getDebugLoc();
+
+  if (NumBytes) { // adjust stack pointer: SP -= numbytes
+    // If there is an SUB16ri of SP immediately before this instruction, merge
+    // the two.
+    //NumBytes -= mergeSPUpdates(MBB, MBBI, true);
+    // If there is an ADD16ri or SUB16ri of SP immediately after this
+    // instruction, merge the two instructions.
+    // mergeSPUpdatesDown(MBB, MBBI, &NumBytes);
+
+    if (NumBytes) {
+      MachineInstr *MI =
+        BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBria), TriCore::A10)
+        .addReg(TriCore::A10).addImm(NumBytes);
+      // The SRW implicit def is dead.
+      //MI->getOperand(3).setIsDead();
+    }
+  }
+}
+
+
+
+
 void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
 
-//  outs() << "=====ADD Prologue====\n";
-//
-//  for( auto it=MF.begin() ; it!=MF.end() ; ++it) {
-//	  outs()<<"MF: " <<it->getName() <<"\n";
-//  }
-//
-//  for( auto it=MBB.begin() ; it!=MBB.end() ; ++it) {
-//  	  outs()<<"MB: " <<it->getOpcode() <<"\n";
-//  }
+
+
+	return emitPrologue_thesis(MF, MBB);
+
   // Compute the stack size, to determine if we need a prologue at all.
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
@@ -143,33 +225,33 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
   // Compute the stack size, to determine if we need an epilogue at all.
-  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-  MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-  DebugLoc dl = MBBI->getDebugLoc();
-  uint64_t StackSize = computeStackSize(MF);
-  outs() << "emitEpilogue start\n";
-  if (!StackSize) {
-    return;
-  }
-
-  outs() << "emitEpilogue start\n";
-
-  // Restore the stack pointer to what it was at the beginning of the function.
-  unsigned StackReg = TriCore::A10;
-  unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
-  if (OffsetReg) {
-    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDrr), StackReg)
-        .addReg(StackReg)
-        .addReg(OffsetReg)
-        .setMIFlag(MachineInstr::FrameSetup);
-  } else {
-    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDri), StackReg)
-        .addReg(StackReg)
-        .addImm(StackSize)
-        .setMIFlag(MachineInstr::FrameSetup);
-  }
-
-  outs() << "emitEpilogue ends\n";
+//  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
+//  MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
+//  DebugLoc dl = MBBI->getDebugLoc();
+//  uint64_t StackSize = computeStackSize(MF);
+//  outs() << "emitEpilogue start\n";
+//  if (!StackSize) {
+//    return;
+//  }
+//
+//  outs() << "emitEpilogue start\n";
+//
+//  // Restore the stack pointer to what it was at the beginning of the function.
+//  unsigned StackReg = TriCore::A10;
+//  unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
+//  if (OffsetReg) {
+//    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDrr), StackReg)
+//        .addReg(StackReg)
+//        .addReg(OffsetReg)
+//        .setMIFlag(MachineInstr::FrameSetup);
+//  } else {
+//    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDri), StackReg)
+//        .addReg(StackReg)
+//        .addImm(StackSize)
+//        .setMIFlag(MachineInstr::FrameSetup);
+//  }
+//
+//  outs() << "emitEpilogue ends\n";
 
 }
 

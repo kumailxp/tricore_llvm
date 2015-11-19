@@ -146,6 +146,28 @@ class RR<bits<8> op1, bits<8> op2, dag outs, dag ins, string asmstr,
 } 
 
 //===----------------------------------------------------------------------===//
+// 32-bit RR2 Instruction Format: <d|op2|s2|s1|op1>
+//===----------------------------------------------------------------------===//
+class RR2<bits<8> op1, bits<12> op2, dag outs, dag ins, string asmstr,
+                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
+  
+  bits<4> s1;
+  bits<4> s2;
+  bits<4> d;
+  bits<2> n;
+  
+  let Inst{7-0} = op1;
+  let Inst{11-8} = s1;
+  let Inst{15-12} = s2;
+  let Inst{27-16} = op2;
+  let Inst{31-28} = d;
+  
+
+} 
+
+
+
+//===----------------------------------------------------------------------===//
 // 32-bit RLC Instruction Format: <d|const16||s1|op1>
 //===----------------------------------------------------------------------===//
 class RLC<bits<8> op1, dag outs, dag ins, string asmstr,
@@ -164,7 +186,7 @@ class RLC<bits<8> op1, dag outs, dag ins, string asmstr,
 } 
 
 //===----------------------------------------------------------------------===//
-// 32-bit RC Instruction Format: <d|op2|cons9|s1|op1>
+// 32-bit RC Instruction Format: <d|op2|const9|s1|op1>
 //===----------------------------------------------------------------------===//
 class RC<bits<8> op1, bits<7> op2, dag outs, dag ins, string asmstr, 
                   list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
