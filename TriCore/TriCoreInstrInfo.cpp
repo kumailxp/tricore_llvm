@@ -108,7 +108,7 @@ void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
                                          const TargetRegisterClass *RC,
 																				 const TargetRegisterInfo *TRI) const
 {
-
+	outs()<<"==TriCoreInstrInfo::storeRegToStackSlot==\n";
 	DebugLoc DL;
 	if (I != MBB.end()) DL = I->getDebugLoc();
 	MachineFunction &MF = *MBB.getParent();
@@ -149,107 +149,107 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
       .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
 }
 
-//Branch Analysis
-
-
-bool
-TriCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
-                            MachineBasicBlock *&FBB,
-                            SmallVectorImpl<MachineOperand> &Cond,
-														std::vector<unsigned> &s1,
-													  std::vector<unsigned> &s2,
-                            bool AllowModify) const {
-  bool HasCondBranch = false;
-  TBB = nullptr;
-  FBB = nullptr;
-  for (MachineInstr &MI : MBB) {
-    if (MI.getOpcode() == TriCore::JMP) {
-    	//outs() << "MI.getOpcode() == LEG::B\n";
-    	//MI.getOperand(0).getMBB()->dump();
-      MachineBasicBlock *TargetBB = MI.getOperand(0).getMBB();
-      if (HasCondBranch) {
-        FBB = TargetBB;
-      } else {
-        TBB = TargetBB;
-      }
-    } else if (MI.getOpcode() == TriCore::JCC) {
-    	//outs()<< "MI.getOpcode() == LEG::Bcc\n";
-    	//MI.getOperand(1).getMBB()->dump();
-      MachineBasicBlock *TargetBB = MI.getOperand(1).getMBB();
-      s1.push_back(MI.getOperand(2).getReg());
-      s2.push_back(MI.getOperand(2).getReg());
-      TBB = TargetBB;
-      Cond.push_back(MI.getOperand(0));
-      HasCondBranch = true;
-    }
-  }
-  return false;
-}
-/// RemoveBranch - Remove the branching code at the end of the specific MBB.
-/// This is only invoked in cases where AnalyzeBranch returns success. It
-/// returns the number of instructions that were removed.
-unsigned
-TriCoreInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
-  if (MBB.empty())
-    return 0;
-
-  outs()<< "RemoveBranch\n";
-  unsigned NumRemoved = 0;
-  auto I = MBB.end();
-  do {
-    --I;
-    unsigned Opc = I->getOpcode();
-    if ((Opc == TriCore::JMP) || (Opc == TriCore::JCC)) {
-      auto ToDelete = I;
-      //(*I).dump();
-      ++I;
-      MBB.erase(ToDelete);
-      NumRemoved++;
-    }
-  } while (I != MBB.begin());
-
-  outs()<<"NumRemoved: " << NumRemoved <<"\n";
-  return NumRemoved;
-}
-
-/// InsertBranch - Insert branch code into the end of the specified
-/// MachineBasicBlock.  The operands to this method are the same as those
-/// returned by AnalyzeBranch.  This is only invoked in cases where
-/// AnalyzeBranch returns success. It returns the number of instructions
-/// inserted.
-///
-/// It is also invoked by tail merging to add unconditional branches in
-/// cases where AnalyzeBranch doesn't apply because there was no original
-/// branch to analyze.  At least this much must be implemented, else tail
-/// merging needs to be disabled.
-unsigned TriCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,
-                                    MachineBasicBlock *TBB,
-                                    MachineBasicBlock *FBB,
-                                    ArrayRef<MachineOperand> Cond,
-																		std::vector<unsigned> &s1,
-																		std::vector<unsigned> &s2,
-                                    DebugLoc DL) const {
-  unsigned NumInserted = 0;
-
-
-  outs()<< "InsertBranch\n";
-  // Insert any conditional branch.
-  if (Cond.size() > 0) {
-//    BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
-//    																							.addReg(s1[0]).addReg(s2[0]);
-  	BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
-  	    																							.addReg(s1[0]);
-    NumInserted++;
-  }
-
-  // Insert any unconditional branch.
-  if (Cond.empty() || FBB) {
-    BuildMI(MBB, MBB.end(), DL, get(TriCore::JMP)).addMBB(Cond.empty() ? TBB : FBB);
-    NumInserted++;
-  }
-  outs()<<"NumInserted: " << NumInserted <<"\n";
-  return NumInserted;
-}
+////Branch Analysis
+//
+//
+//bool
+//TriCoreInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
+//                            MachineBasicBlock *&FBB,
+//                            SmallVectorImpl<MachineOperand> &Cond,
+//														std::vector<unsigned> &s1,
+//													  std::vector<unsigned> &s2,
+//                            bool AllowModify) const {
+//  bool HasCondBranch = false;
+//  TBB = nullptr;
+//  FBB = nullptr;
+//  for (MachineInstr &MI : MBB) {
+//    if (MI.getOpcode() == TriCore::JMP) {
+//    	//outs() << "MI.getOpcode() == LEG::B\n";
+//    	//MI.getOperand(0).getMBB()->dump();
+//      MachineBasicBlock *TargetBB = MI.getOperand(0).getMBB();
+//      if (HasCondBranch) {
+//        FBB = TargetBB;
+//      } else {
+//        TBB = TargetBB;
+//      }
+//    } else if (MI.getOpcode() == TriCore::JCC) {
+//    	//outs()<< "MI.getOpcode() == LEG::Bcc\n";
+//    	//MI.getOperand(1).getMBB()->dump();
+//      MachineBasicBlock *TargetBB = MI.getOperand(1).getMBB();
+//      s1.push_back(MI.getOperand(2).getReg());
+//      s2.push_back(MI.getOperand(2).getReg());
+//      TBB = TargetBB;
+//      Cond.push_back(MI.getOperand(0));
+//      HasCondBranch = true;
+//    }
+//  }
+//  return false;
+//}
+///// RemoveBranch - Remove the branching code at the end of the specific MBB.
+///// This is only invoked in cases where AnalyzeBranch returns success. It
+///// returns the number of instructions that were removed.
+//unsigned
+//TriCoreInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
+//  if (MBB.empty())
+//    return 0;
+//
+//  outs()<< "RemoveBranch\n";
+//  unsigned NumRemoved = 0;
+//  auto I = MBB.end();
+//  do {
+//    --I;
+//    unsigned Opc = I->getOpcode();
+//    if ((Opc == TriCore::JMP) || (Opc == TriCore::JCC)) {
+//      auto ToDelete = I;
+//      //(*I).dump();
+//      ++I;
+//      MBB.erase(ToDelete);
+//      NumRemoved++;
+//    }
+//  } while (I != MBB.begin());
+//
+//  outs()<<"NumRemoved: " << NumRemoved <<"\n";
+//  return NumRemoved;
+//}
+//
+///// InsertBranch - Insert branch code into the end of the specified
+///// MachineBasicBlock.  The operands to this method are the same as those
+///// returned by AnalyzeBranch.  This is only invoked in cases where
+///// AnalyzeBranch returns success. It returns the number of instructions
+///// inserted.
+/////
+///// It is also invoked by tail merging to add unconditional branches in
+///// cases where AnalyzeBranch doesn't apply because there was no original
+///// branch to analyze.  At least this much must be implemented, else tail
+///// merging needs to be disabled.
+//unsigned TriCoreInstrInfo::InsertBranch(MachineBasicBlock &MBB,
+//                                    MachineBasicBlock *TBB,
+//                                    MachineBasicBlock *FBB,
+//                                    ArrayRef<MachineOperand> Cond,
+//																		std::vector<unsigned> &s1,
+//																		std::vector<unsigned> &s2,
+//                                    DebugLoc DL) const {
+//  unsigned NumInserted = 0;
+//
+//
+//  outs()<< "InsertBranch\n";
+//  // Insert any conditional branch.
+//  if (Cond.size() > 0) {
+////    BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
+////    																							.addReg(s1[0]).addReg(s2[0]);
+//  	BuildMI(MBB, MBB.end(), DL, get(TriCore::JCC)).addOperand(Cond[0]).addMBB(TBB)
+//  	    																							.addReg(s1[0]);
+//    NumInserted++;
+//  }
+//
+//  // Insert any unconditional branch.
+//  if (Cond.empty() || FBB) {
+//    BuildMI(MBB, MBB.end(), DL, get(TriCore::JMP)).addMBB(Cond.empty() ? TBB : FBB);
+//    NumInserted++;
+//  }
+//  outs()<<"NumInserted: " << NumInserted <<"\n";
+//  return NumInserted;
+//}
 
 
 ///////////////////////////////////////////

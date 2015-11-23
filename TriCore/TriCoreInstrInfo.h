@@ -86,19 +86,19 @@ public:
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const
      override;
 
-  bool AnalyzeBranch(MachineBasicBlock &MBB,
-                       MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,
-                       SmallVectorImpl<MachineOperand> &Cond,
-											 std::vector<unsigned> &s1,
-											 std::vector<unsigned> &s2,
-                       bool AllowModify) const;
-
-	unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-	unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-                          MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
-													std::vector<unsigned> &s1,
-													std::vector<unsigned> &s2,
-                          DebugLoc DL) const ;
+//  bool AnalyzeBranch(MachineBasicBlock &MBB,
+//                       MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,
+//                       SmallVectorImpl<MachineOperand> &Cond,
+//											 std::vector<unsigned> &s1,
+//											 std::vector<unsigned> &s2,
+//                       bool AllowModify) const;
+//
+//	unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
+//	unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
+//                          MachineBasicBlock *FBB, ArrayRef<MachineOperand> Cond,
+//													std::vector<unsigned> &s1,
+//													std::vector<unsigned> &s2,
+//                          DebugLoc DL) const ;
 };
 }
 

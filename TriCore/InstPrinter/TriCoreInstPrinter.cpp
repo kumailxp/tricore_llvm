@@ -181,30 +181,35 @@ void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
 //===----------------------------------------------------------------------===//
 // PrintSExtImm<unsigned bits>
 //===----------------------------------------------------------------------===//
-template <unsigned int bits>
+template <unsigned bits>
 void TriCoreInstPrinter::printSExtImm(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
-  int Value = MI->getOperand(OpNo).getImm();
-  Value = SignExtend32<bits>(Value);
-  O << (int)Value;
+  int64_t Value = MI->getOperand(OpNo).getImm();
+ Value = SignExtend32<bits>(Value);
+  outs()<< "Value: "<< Value <<"\n";
+  assert(isInt<bits>(Value) && "Invalid simm argument");
+
+  O << Value;
 }
 
-
-void TriCoreInstPrinter::printZExt8Imm(const MCInst *MI, int OpNo,
+template <unsigned bits>
+void TriCoreInstPrinter::printZExtImm(const MCInst *MI, int OpNo,
                                        raw_ostream &O) {
   unsigned int Value = MI->getOperand(OpNo).getImm();
-  assert(Value <= 255 && "Invalid u8imm argument!");
+  unsigned int maxval = pow((uint)2,(uint)bits);
+  outs()<< "Power value: " << maxval <<"\n";
+  assert(Value <= ((unsigned int)pow(2,bits) -1 )  && "Invalid uimm argument!");
   //Value =  (unsigned char)(Value);
   O << (unsigned int)Value;
 }
 
 
-void TriCoreInstPrinter::printZExt4Imm(const MCInst *MI, unsigned OpNo,
-											raw_ostream &O) {
-  unsigned int Value = MI->getOperand(OpNo).getImm();
-  assert(Value <= 15 && "Invalid u4imm argument!");
-  O << (unsigned int)Value;
-}
+//void TriCoreInstPrinter::printZExt4Imm(const MCInst *MI, unsigned OpNo,
+//											raw_ostream &O) {
+//  unsigned int Value = MI->getOperand(OpNo).getImm();
+//  assert(Value <= 15 && "Invalid u4imm argument!");
+//  O << (unsigned int)Value;
+//}
 
 
 /*

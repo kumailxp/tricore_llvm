@@ -113,14 +113,17 @@ class SB<bits<8> op1, bits<4> op2, dag outs, dag ins,
 }
 
 //===----------------------------------------------------------------------===//
-// 16-bit SR Instruction Format: <disp8|op1>
+// 16-bit SR Instruction Format: <op2|s1|d|op1>
 //===----------------------------------------------------------------------===//
-class SR<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
-    : T16<op1, outs, ins, asmstr, pattern> {
+class SR<bits<8> op1, bits<4> op2, dag outs, dag ins, string asmstr, 
+			list<dag> pattern> : T16<op1, outs, ins, asmstr, pattern> {
 
-  bits<8> disp8;
+  bits<4> op2;
+  bits<4> s1;
+  bits<4> d;
   
-  let Inst{15-8} = disp8;
+  let Inst{15-12} = op2;
+  let Inst{11-8} = s1;
 
 }
 
@@ -218,19 +221,40 @@ class B<bits<8> op1, dag outs, dag ins, string asmstr,
 //===----------------------------------------------------------------------===//
 // 32-bit BRR Instruction Format: <op2|disp15|s2|s1|op1>
 //===----------------------------------------------------------------------===//
-class BRR<bits<8> op1, dag outs, dag ins, string asmstr, 
+class BRR<bit op2, bits<8> op1, dag outs, dag ins, string asmstr, 
                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
 	
 	bits<4> s1;
 	bits<4> s2;
+	bits<15> dip15;
 	
 	let Inst{7-0} = op1;
 	let Inst{11-8} = s1;
 	let Inst{15-12} = s1;
+	let Inst{30-16} = dip15;
+	let Inst{31} = op2;
+}
+
+//===----------------------------------------------------------------------===//
+// 32-bit BRC Instruction Format: <op2|disp15|const4|s1|op1>
+//===----------------------------------------------------------------------===//
+class BRC<bit op2, bits<8> op1, dag outs, dag ins, string asmstr, 
+                list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
+	
+	bits<4> s1;
+	bits<4> const4;
+	bits<15> dip15;
+	
+	let Inst{7-0} = op1;
+	let Inst{11-8} = s1;
+	let Inst{15-12} = const4;
+	let Inst{30-16} = dip15;
+	let Inst{31} = op2;
 	
  
 }
- 
+
+
 
 //===----------------------------------------------------------------------===//
 // 32-bit BOL Instr Format: <off16[9:6]|off16[15:10]|off16[5:0]|s2|s1/d|op1>

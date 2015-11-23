@@ -73,35 +73,26 @@ def TriCoreimm8 : Operand<i32>, ImmLeaf<i32, [{
 //===----------------------------------------------------------------------===//
 
 //Operand
-def s9imm      : Operand<i32> {
-  let PrintMethod = "printSExtImm<9>";
-}
-
-def s8imm      : Operand<i32> {
-  let PrintMethod = "printZExt8Imm";
-}
-
-def s4imm      : Operand<i32> {
-  let PrintMethod = "printZExt4Imm";
-}
-
-// Signed Operand
-def s16imm      : Operand<i32> {
-  let PrintMethod= "printSExtImm<16>";
-}
-
+def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
+def s4imm      : Operand<i32> { let PrintMethod = "printSExtImm<4>";  }
+def s16imm     : Operand<i32> { let PrintMethod = "printSExtImm<16>"; }
+def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
+def u4imm      : Operand<i32> { let PrintMethod = "printZExtImm<4>";  }
+def u9imm      : Operand<i32> { let PrintMethod = "printZExtImm<9>";  }
 
 //Node
 //def immSExt9 : ImmLeaf<i32, [{
 //  return Imm >= -256 && Imm < 256;
 //}]>;
 
+
+def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 
-//Node
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
 def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;
+def immZExt9 : ImmLeaf<i32, [{return Imm == (Imm & 0x1ff);}]>;
 
 //===----------------------------------------------------------------------===//
 // Complex Pattern Definitions.

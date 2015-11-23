@@ -37,7 +37,8 @@ enum NodeType {
   CALL,
 	CMP,
 	CMPB,
-	BR_CC
+	BR_CC,
+	BR_CC_new
 };
 }
 
