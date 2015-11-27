@@ -16,42 +16,23 @@ include "TriCoreOperators.td"
 
 
 def SDT_TriCoreCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
-//def SDT_TriCoreBrCC       : SDTypeProfile<0, 2, [SDTCisVT<0, OtherVT>,
-//                                                 SDTCisVT<1, i32>]>;
-
-//def SDT_TriCoreBrCC       : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
-//                                                 SDTCisVT<1, OtherVT>,
-//                                                 SDTCisSameAs<2, 3>,
-//                                                 SDTCisInt<2> ]>;
-
-//def SDT_TriCoreBrCC         : SDTypeProfile<0, 2, [SDTCisVT<0, i32>,
-//						   SDTCisVT<1, OtherVT> ]>;
-
 
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
 						   SDTCisVT<1, OtherVT>,
 						   SDTCisInt<2>,
 							 SDTCisInt<3>]>;
 
-def SDT_TriCoreBrCC_new         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
-						   SDTCisVT<1, OtherVT>,
-						   SDTCisInt<2>,
-							 SDTCisInt<3>]>;
 
+def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
+                                                  SDTCisPtrTy<0>]>;
 
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
-
 def TriCorecmpb    : SDNode<"TriCoreISD::CMPB", SDTIntBinOp, [ ]>;
 
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
                                                  [SDNPHasChain]>;
-def TriCorebrcc_new    : SDNode<"TriCoreISD::BR_CC_new", SDT_TriCoreBrCC_new,
-                                                 [SDNPHasChain]>;
-
-// Short jump targets have OtherVT type and are printed as pcrel imm values.
-
-//def code : Operand<OtherVT>;
+def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 
 
 def jmptarget : Operand<OtherVT> {
@@ -67,12 +48,25 @@ def cc : Operand<i32> {
 // ADD Instructions
 //===----------------------------------------------------------------------===//
 
+
+def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
+               ,"addi $d, $const4",
+               [(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>
+{
+	let Constraints = "$s1 = $d";
+}
+
 def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 				  "add $d, $s1, $s2",
     	       [(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]>;
-def ADDri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9)
+def ADDri : RC<0x8B, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const9)
                ,"addi $d, $s1, $const9",
                [(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
+
+def ADDari : RC<0x8B, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s1, i32imm:$const9)
+               ,"addi $d, $s1, $const9",
+               [(set AddrRegs:$d, (add AddrRegs:$s1, immSExt9:$const9) )]>;
+
 
 def ADDCrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 				  "addc $d, $s1, $s2",
@@ -190,82 +184,42 @@ def NOTsr : SR<0x46, 0x0, (outs DataRegs: $d), (ins DataRegs:$s1),
 	 let Constraints = "$s1 = $d";
 }
 
-
-//===----------------------------------------------------------------------===//
-// Mov Instructions
-//===----------------------------------------------------------------------===//
-//def MOVrr  : RR<0x87, 0x99, (outs DataRegs:$d), (ins DataRegs:$s2),
-//                     "mov $d, $s2",
-//                     [/* No pattern */]> {
-//      let n = 0b00;
-//      let s1 = 0b0000;
-//}
-
-
 //===----------------------------------------------------------------------===//
 // Mov Immediate Instructions
 //===----------------------------------------------------------------------===//
 
 def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
 				"mov $d, $s2", [ ]>;
-
-//def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
-//				"movxx $d, $s2", [  ]>;
-//def MOVaRR : RR<0x01, 0x63, (outs AddrRegsOthers:$d), (ins DataRegs:$s2),
-//				"mov.a $d, $s2", [ ]>;
-def MOVdRR : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
+def MOVDrr : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
 				"mov.d $d, $s2", [  ]>;
-////def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
-////				"mov.aa $d, $s2", [(set i32:$d, i32:$s2)]>;
-//
-def MOVaaRR : RR<0x01, 0x63, (outs AddrRegs:$d), (ins AddrRegs:$s2),
+def MOVArr : RR<0x01, 0x63, (outs AddrRegs:$d), (ins DataRegs:$s2),
+				"mov.a $d, $s2", [ ]>;
+def MOVAArr : RR<0x01, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s2),
 				"mov.aa $d, $s2", [ ]>;
-//def MOVaSRC : SRC<0xA0, (outs AddrRegsOthers:$dst), (ins u4imm:$src1),
-//				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, immZExt4:$src1)]>;
-//
-//def MOVaSRR : SRC<0x60, (outs AddrRegsOthers:$dst), (ins DataRegs:$src1),
-//				"mov.a $dst, $src1", [(set AddrRegsOthers:$dst, DataRegs:$src1)]>;
-
-
-//def MOVLOi16 : MOV<0x81, "mov", (ins i32imm:$const16),
-//                  [(set i32:$d, i32imm_lo:$const16)]>;
-//def MOVHIi16 : MOV<0b1010, "movt", (ins GRRegs:$src1, i32imm:$imm),
-//                  [/* No Pattern */]>;
-
 
 class MOV<bits<8> opcode, string opstr, dag ins, list<dag>pattern>
-    : RLC<opcode, (outs DataRegs:$dst), ins,
-              !strconcat(opstr, " $dst, $imm"), pattern> {
-  
-  bits<4> dst;
-  bits<16> imm;
-  let Inst{15-12} = dst;
-  let Inst{11-0}  = imm{11-0};
-  let Inst{19-16} = imm{15-12};
-  let Inst{20} = 0;
-  let Inst{25} = 1;
+    : RLC<opcode, (outs DataRegs:$d), ins,
+              !strconcat(opstr, " $d, $const16"), pattern>;
 
-  //let const16 = const16;
-}
+def MOVrlc : MOV<0x3B,"mov", (ins s16imm:$const16) ,
+              [(set i32:$d, immSExt16:$const16)]>;
 
-def MOVrlc : MOV<0x3B,"movw", (ins i32imm:$imm) ,
-              [(set i32:$dst, i32imm_lo:$imm)]>;
-//def MOVHIi16 : MOV<0x7B, "movh", (ins i32imm:$imm), [/* No Pattern */]>;
+def MOVUrlc : MOV<0x3B,"mov.u", (ins u16imm:$const16) ,
+              [(set i32:$d, immZExt16:$const16)]>;
 
-def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$imm), 
-               [/* No Pattern */]>
+def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16), 
+               []>
 {
-	let Constraints = "$fakesrc = $dst";
+	let Constraints = "$fakesrc = $d";
 }
 
+def MOVi32 : RLC<0x00, (outs DataRegs:$d), (ins i32imm:$const16), "",
+                     [(set i32:$d, (movei32 imm:$const16))]> {
+  let isPseudo = 1;
+}
 
-//def MOVrlc : RLC<0x3B, (outs DataRegs:$dst), (ins i32imm:$const16),
-//				"mov $dst, $const16", [(set i32:$dst, i32imm_lo:$const16)]>;
-//def MOVHIi16 : RLC<0x7B, (outs DataRegs:$dst), (ins DataRegs:$s1, i32imm:$const16),
-//					"movh $dst, $const16" ,
-//                  [/* No Pattern */]>;
-def MOVi32 : InstTriCore<(outs DataRegs:$dst), (ins i32imm:$src), "",
-                     [(set i32:$dst, (movei32 imm:$src))]> {
+def MOVAi32 : RLC<0x00,(outs DataRegs:$d), (ins i32imm:$const16), "",
+                     [(set i32:$d, (movei32 i32:$const16))]> {
   let isPseudo = 1;
 }
 
@@ -274,10 +228,10 @@ def MOVi32 : InstTriCore<(outs DataRegs:$dst), (ins i32imm:$src), "",
 //===----------------------------------------------------------------------===//
 
 let mayLoad = 1 in {
-def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
-                   "ldr $s1_d, $off16",
-                   [(set DataRegs:$s1_d, (load addr:$off16))]> {
-}
+	def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
+										 "ldr $s1_d, $off16",
+										 [(set DataRegs:$s1_d, (load addr:$off16))]> {
+	}
 }
 
 def STR : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
@@ -301,29 +255,6 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [A11] in {
 //===----------------------------------------------------------------------===//
 // Compare Instructions
 //===----------------------------------------------------------------------===//
-
-
-
-//def CMPrr  : T32<(outs), (DataRegs:$lhs, DataRegs:$rhs),
-//                   "cmp $lhs, $rhs",
-//                   []> {
-//	
-//	bits<4> lhs;
-//	bits<4> rhs;
-//
-//	let Defs = [D9];
-//	
-//}
-
-//def CMPri  : RC<0x0B, 0x14 ,
-//                   (outs), (ins DataRegs:$s1, s9imm:$const9),
-//                   "cmp $s1, $const9",
-//                   [(TriCorecmp DataRegs:$s1, immSExt9:$const9)]> {
-//	
-//	
-//	let Defs = [D9];
-//}
-
 def CMPri  : RC<0x0B, 0x14 ,
                    (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
                    "cmp $d, $s1, $const9",
@@ -332,7 +263,6 @@ def CMPri  : RC<0x0B, 0x14 ,
 	
 
 }
-//
 
 def CMPrr  : RR<0x0, 0x14,
                    (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
@@ -345,24 +275,20 @@ def CMPrr  : RR<0x0, 0x14,
 //===----------------------------------------------------------------------===//
 // Jump Instructions
 //===----------------------------------------------------------------------===//
+multiclass BRANCH_SIGNED<bits<8> op1_brc, bits<8> op1_brr, 
+												bit op2, string asmstring>
+{
 
-
-
-	
-	
-	multiclass BRANCH_SIGNED<bits<8> op1_brc, bits<8> op1_brr, bit op2, string asmstring>
-		{
-
-			def brc: BRC<op2, op1_brc, (outs), 
+		def brc: BRC<op2, op1_brc, (outs), 
 					(ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, s4imm:$const4),
 					!strconcat(asmstring, " $s1, $const4, $disp15"),
 					[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, immSExt4:$const4)]>;
 			
-			def brr: BRR<op2, op1_brr, (outs), 
+		def brr: BRR<op2, op1_brr, (outs), 
 					(ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2),
 					!strconcat(asmstring, " $s1, $s2, $disp15"),
 					[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]>;
-		}
+}
 
 let isBranch =1, isTerminator = 1 in {
 	
@@ -371,74 +297,26 @@ let isBranch =1, isTerminator = 1 in {
 	defm JGE : BRANCH_SIGNED<0xff, 0x7f, 0b0, "jge">;
 	defm JLT : BRANCH_SIGNED<0xbf, 0x3f, 0b0, "jlt">;
 	
-	
+
 	let isBarrier = 1 in {
 			// Short branch
 			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
-							"j $dst",
-							[(br bb:$dst)]>;
+							"j $dst",	[(br bb:$dst)]>;
 	}
-	
-	
-	
-	
-	
-	
-	
-	
-	
-//	// Conditional branches
-//	let Uses = [D9] in {
+
+}// isBranch, isTerminator
 		
-//		def JCC : BRR<0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2 ),
-//											"j$cc1 $s1, $s2, $disp15",
-//											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]> { 
-//def JCC : BRR<0, 0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1 ),
-//											"j$cc1 , $disp15",
-//											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1)]> { 
-////				bits<4> s2;
-////				bits<4> s1;
-//			
-//			}
-
-
-//def JCC2 : BRR<0, 0, (outs), (ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1 ),
-//											"jhgjgjgj , $disp15",
-//											[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1)]> { 
-////				bits<4> s2;
-////				bits<4> s1;
-//			
-//			}
-
-
-
-//		} 
-	}// isBranch, isTerminator
-		
-
-
-//let isTerminator = 1, isBranch = 1, isBarrier = 1 in {
-//  def JMP : T32<(outs), (ins b_target:$dst),
-//                  "b $dst", [(br bb:$dst)]> {
-//    bits<24> dst;
-//    let Inst{31-28} = 0b0000;
-//    let Inst{27-24} = 0b1010;
-//    let Inst{23-0} = dst;
-//  }
-//}
-//
-//let isTerminator = 1, isBranch = 1, Uses = [D9] in {
-//  def JCC : T32<(outs), (ins cc_val:$cc, b_target:$dst),
-//                    "b$cc $dst",  []> {
-//  }
-//}
 
 
 //===----------------------------------------------------------------------===//
 // Call Instructions
 //===----------------------------------------------------------------------===//
 
-//def : Pattern<(i32 (load_sym tglobaladdr:$addr)),  [(MOVi32 $addr)]>;
+def : Pattern<(i32 (load_sym tglobaladdr:$addr)), 
+		[ (MOVAi32 $addr)]>;
+
+//def : Pat<(add AddrRegs:$src, (load_sym tglobaladdr :$src2)),
+//          (ADDari AddrRegs:$src, tglobaladdr:$src2)>;
 
 //===----------------------------------------------------------------------===//
 // Pseudo Instructions
@@ -452,3 +330,7 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
                                     "# ADJCALLSTACKUP $amt1",
                                     [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
+
+
+def : Pat<(add DataRegs:$s1, -1),
+          (ADDsrc DataRegs:$s1, -1)>;

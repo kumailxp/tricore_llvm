@@ -199,10 +199,26 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
 
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const
 {
-  EVT VT = Op.getValueType();
+
+//	const GlobalValue *GV = cast<GlobalAddressSDNode>(Op)->getGlobal();
+//	int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+//	auto PtrVT = getPointerTy(DAG.getDataLayout());
+//
+//	// Create the TargetGlobalAddress node, folding in the constant offset.
+//	SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), PtrVT, Offset);
+//	return DAG.getNode(TriCoreISD::Wrapper, SDLoc(Op), PtrVT, Result);
+
+
+
+	EVT VT = Op.getValueType();
   GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
+  int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+  outs().changeColor(raw_ostream::RED,1)<< "Offset:Isel "<< Offset;
+ 	Op.dump();
   SDValue TargetAddr =
-      DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32);
+      DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
+  TargetAddr.dump();
+  outs().changeColor(raw_ostream::WHITE,0);
   return DAG.getNode(TriCoreISD::LOAD_SYM, Op, VT, TargetAddr);
 }
 

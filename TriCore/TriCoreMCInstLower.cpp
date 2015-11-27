@@ -42,10 +42,17 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   case MachineOperand::MO_MachineBasicBlock:
     Symbol = MO.getMBB()->getSymbol();
     break;
-  case MachineOperand::MO_GlobalAddress:
+  case MachineOperand::MO_GlobalAddress: {
+  	outs()<<"MachineOperand::MO_GlobalAddress\n";
     Symbol = Printer.getSymbol(MO.getGlobal());
     Offset += MO.getOffset();
+    Offset = 0;
+//    outs()<<"offset->MCInstr: " << Offset <<"\n";
+//    const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, *Ctx);
+//    Expr = MCBinaryExpr::createAdd(Expr,MCConstantExpr::create(Offset, *Ctx),*Ctx);
+//    return MCOperand::createExpr(Expr);
     break;
+  }
   case MachineOperand::MO_BlockAddress:
     Symbol = Printer.GetBlockAddressSymbol(MO.getBlockAddress());
     Offset += MO.getOffset();
@@ -71,13 +78,14 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
   switch (Option) {
     default:
       break;
-    case TriCoreII::MO_LO16:
-      Kind = MCSymbolRefExpr::VK_TRICORE_LO;
+    case TriCoreII::MO_LO_OFFSET:
+      Kind = MCSymbolRefExpr::VK_TRICORE_LO_OFFSET;
       break;
-    case TriCoreII::MO_HI16:
-      Kind = MCSymbolRefExpr::VK_TRICORE_HI;
+    case TriCoreII::MO_HI_OFFSET:
+      Kind = MCSymbolRefExpr::VK_TRICORE_HI_OFFSET;
       break;
   }
+  //const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol, Kind, *Ctx);
   const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol, Kind, *Ctx);
 
   if (!Offset) {
@@ -86,9 +94,15 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
 
   // Assume offset is never negative.
   assert(Offset > 0);
+  outs().changeColor(raw_ostream::BLUE,1)<<"MO_GlobalAddress->offset: "
+    																				<< Offset <<"\n";
+
 
   const MCConstantExpr *OffsetExpr = MCConstantExpr::create(Offset, *Ctx);
   const MCBinaryExpr *Add = MCBinaryExpr::createAdd(MCSym, OffsetExpr, *Ctx);
+  Add->dump();
+  MCOperand::createExpr(Add).dump();
+  outs().changeColor(raw_ostream::WHITE,0);
   return MCOperand::createExpr(Add);
 }
 

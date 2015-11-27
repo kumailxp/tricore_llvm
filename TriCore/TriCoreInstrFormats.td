@@ -80,9 +80,9 @@ class SRC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
     : T16<op1, outs, ins, asmstr, pattern> {
 
   bits<4> const4;
-  bits<4> s1_d;
+  bits<4> d;
   
-  let Inst{11-8} = s1_d;
+  let Inst{11-8} = d;
   let Inst{15-12} = const4; 
 
 }

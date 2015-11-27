@@ -46,10 +46,15 @@ namespace TriCoreII {
     /// just that part of the flag set.
     MO_OPTION_MASK = 0x7f,
 
-    // It's undefined behaviour if an enum overflows the range between its
-    // smallest and largest values, but since these are |ed together, it can
-    // happen. Put a sentinel in (values of this enum are stored as "unsigned
-    // char").
+   	MO_LO_OFFSET = 0x54,
+
+
+		MO_HI_OFFSET = 0x55,
+
+		// It's undefined behaviour if an enum overflows the range between its
+		// smallest and largest values, but since these are |ed together, it can
+		// happen. Put a sentinel in (values of this enum are stored as "unsigned
+		// char").
     MO_UNUSED_MAXIMUM = 0xff
   };
 } // end namespace TriCoreII

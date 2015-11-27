@@ -52,12 +52,17 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
     assert(SRE && "Unexpected MCExpr type.");
   }
   const MCSymbolRefExpr::VariantKind Kind = SRE->getKind();
-  assert(Kind == MCSymbolRefExpr::VK_None ||
-         Kind == MCSymbolRefExpr::VK_TRICORE_LO ||
-         Kind == MCSymbolRefExpr::VK_TRICORE_HI);
+//  assert(Kind == MCSymbolRefExpr::VK_None ||
+//         Kind == MCSymbolRefExpr::VK_TRICORE_LO ||
+//         Kind == MCSymbolRefExpr::VK_TRICORE_HI);
+//
 
+  if (Kind ==  MCSymbolRefExpr::VK_TRICORE_HI_OFFSET)
+  	OS << "hi:";
+  else if (Kind ==  MCSymbolRefExpr::VK_TRICORE_LO_OFFSET)
+  	OS << "lo:";
+  outs()<< SRE->getSymbol() <<"\n";
   OS << SRE->getSymbol();
-
   if (Offset) {
     if (Offset > 0) {
       OS << '+';
@@ -138,42 +143,11 @@ const char * _condCodeToString(ISD::CondCode CC) {
 //
 void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
-
-
-
 	const MCOperand &Op = MI->getOperand(OpNo);
 	ISD::CondCode CC = (ISD::CondCode)Op.getImm();
 	const char *Str = _condCodeToString(CC);
-
-	outs() <<"Cond code: " << Str << "\n";
-
 	O << Str;
 
-
-//  unsigned CC = MI->getOperand(OpNo).getImm();
-//  outs()<<_printCondCode(CC)<<"\n";
-//  switch (CC) {
-//  default:
-//   llvm_unreachable("Unsupported CC code");
-//  case TriCoreCC::COND_E:
-//   O << "eq";
-//   break;
-//  case TriCoreCC::COND_NE:
-//   O << "ne";
-//   break;
-//  case TriCoreCC::COND_HS:
-//   O << "hs";
-//   break;
-//  case TriCoreCC::COND_LO:
-//   O << "lo";
-//   break;
-//  case TriCoreCC::COND_GE:
-//   O << "ge";
-//   break;
-//  case TriCoreCC::COND_L:
-//   O << 'l';
-//   break;
-//  }
 }
 
 
@@ -186,7 +160,7 @@ void TriCoreInstPrinter::printSExtImm(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
   int64_t Value = MI->getOperand(OpNo).getImm();
  Value = SignExtend32<bits>(Value);
-  outs()<< "Value: "<< Value <<"\n";
+  //outs()<< "Value: "<< Value <<"\n";
   assert(isInt<bits>(Value) && "Invalid simm argument");
 
   O << Value;
@@ -196,33 +170,13 @@ template <unsigned bits>
 void TriCoreInstPrinter::printZExtImm(const MCInst *MI, int OpNo,
                                        raw_ostream &O) {
   unsigned int Value = MI->getOperand(OpNo).getImm();
-  unsigned int maxval = pow((uint)2,(uint)bits);
-  outs()<< "Power value: " << maxval <<"\n";
+//  unsigned int maxval = pow((uint)2,(uint)bits);
+  //outs()<< "Power value: " << maxval <<"\n";
   assert(Value <= ((unsigned int)pow(2,bits) -1 )  && "Invalid uimm argument!");
   //Value =  (unsigned char)(Value);
   O << (unsigned int)Value;
 }
 
-
-//void TriCoreInstPrinter::printZExt4Imm(const MCInst *MI, unsigned OpNo,
-//											raw_ostream &O) {
-//  unsigned int Value = MI->getOperand(OpNo).getImm();
-//  assert(Value <= 15 && "Invalid u4imm argument!");
-//  O << (unsigned int)Value;
-//}
-
-
-/*
-//Print unsigned operand
-void TriCoreInstPrinter::printUnsignedImm(const MCInst *MI, int opNum,
-                                       raw_ostream &O) {
-  const MCOperand &MO = MI->getOperand(opNum);
-  if (MO.isImm())
-    O << MO.getImm();
-  else
-    printOperand(MI, opNum, O);
-}
-*/
 
 // Print a condition code (e.g. for predication).
 void TriCoreInstPrinter::printCondCode(const MCInst *MI, unsigned OpNum,
@@ -258,13 +212,15 @@ void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
 	// Print register base field
 	if (Base.getReg())
 			O << "[%" << StringRef(getRegisterName(Base.getReg())).lower() << ']';
+	outs().changeColor(raw_ostream::RED,1);
+	 Disp.dump();
+	outs().changeColor(raw_ostream::WHITE,0);
 
 	if (Disp.isExpr())
 		Disp.getExpr()->print(O, &MAI);
 	else {
 		assert(Disp.isImm() && "Expected immediate in displacement field");
-		if (!(Disp.getImm()==0))
-				O << " " << Disp.getImm();
+		O << " " << Disp.getImm();
 	}
 
 }

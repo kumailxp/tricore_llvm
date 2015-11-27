@@ -55,18 +55,60 @@ private:
 } // end anonymous namespace
 
 bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset) {
-  if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
+
+	outs().changeColor(raw_ostream::GREEN,1);
+			Addr.dump();
+			outs() <<"Addr Opcode: " << Addr.getOpcode() <<"\n";
+			outs().changeColor(raw_ostream::WHITE,0);
+
+
+
+	if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
 //    EVT PtrVT = getTargetLowering()->getPointerTy(*TM.getDataLayout());
     EVT PtrVT = getTargetLowering()->getPointerTy(CurDAG->getDataLayout());
     Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
     Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
 //    outs().changeColor(raw_ostream::RED)<<"Selecting Frame!\n";
 //    outs().changeColor(raw_ostream::WHITE);
+
     return true;
   }
+
+	SDValue Addr0 = Addr.getOperand(0);
+	if(GlobalAddressSDNode *gAdd = dyn_cast<GlobalAddressSDNode>(Addr0)) {
+		outs()<<"This is working!!!!!!!!!!!!!!\n";
+		Base = Addr;
+		Offset = CurDAG->getTargetConstant(gAdd->getOffset(), Addr, MVT::i32);
+		return true;
+	}
+
+//	SDValue N0 = Addr.getOperand(0);
+//	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N0)) {
+//		EVT VT = Addr.getValueType();
+//		Base = CurDAG->getRegister(0, VT);
+//			//Base = G->getGlobal();
+//	   // Offset += G->getOffset();
+//	   // outs()<< "Displacement: " << Offset << "\n";
+//
+//	    Offset = CurDAG->getTargetGlobalAddress(G->getGlobal(), SDLoc(Addr),
+//	  				MVT::i32, 4,
+//					0/*AM.SymbolFlags*/);
+//	  	//Disp.dump();
+//
+//	  	GlobalAddressSDNode* GG = cast<GlobalAddressSDNode>(Offset);
+//	  	outs() << "Offset: " << GG->getOffset() << "\n";
+//	    return true;
+//	    //AM.SymbolFlags = G->getTargetFlags();
+//	  }
+
   if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
       Addr.getOpcode() == ISD::TargetGlobalAddress ||
       Addr.getOpcode() == ISD::TargetGlobalTLSAddress) {
+
+  	outs().changeColor(raw_ostream::BLUE,1);
+		Addr.dump();
+		outs().changeColor(raw_ostream::WHITE,0);
+
     return false; // direct calls.
   }
 
@@ -78,53 +120,36 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
   // Make sure the immediate size is supported.
   ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
-  uint64_t ImmVal = ConstVal->getZExtValue();
-  outs() <<"ImmVal: "<<  ImmVal << "\n";
+  int64_t ImmSExt = ConstVal->getSExtValue();
+  int64_t ImmZExt = ConstVal->getZExtValue();
+  outs() <<"ImmSExt: "<<  ImmSExt << "\n";
+  outs() <<"ImmZExt: "<<  ImmZExt << "\n";
+  outs().changeColor(raw_ostream::BLUE,1) << "Is this 16SExt?: "
+  																				<< isInt<16>(ImmSExt) << "\n";
+  outs()<< "Is this 16ZExt?: "	<< isUInt<16>(ImmZExt) << "\n";
 
-//  SDValue tmp = N->getOperand(1);
-//  const ConstantSDNode * tmpC = dyn_cast<ConstantSDNode>(tmp);
-//  uint64_t tmpVal = tmpC->getZExtValue();
-//  outs() <<"tmpVal: "<<  tmpVal << "\n";
-
-  uint64_t SupportedMask = 0xfffffffff;
-  if ((ImmVal & SupportedMask) != ImmVal) {
-  	outs() <<" Immediate size not supported!\n";
-    return SelectCode(N);
-  }
+  outs().changeColor(raw_ostream::WHITE,0);
 
   // Select the low part of the immediate move.
   uint64_t LoMask = 0xffff;
-  uint64_t HiMask = 0xffff0000;
-  uint64_t ImmLo = (ImmVal & LoMask);
-  uint64_t ImmHi = (ImmVal & HiMask);
-  SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
-  SDValue ImmValNode = CurDAG->getTargetConstant(ImmVal, N, MVT::i32);
+  uint64_t ImmLo = (ImmZExt & LoMask);
+
   MachineSDNode *Move;
-  if(ImmVal < 65535) {
-  	Move =
-  			CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstLo); //MOVLOi16
-  }
-  // Select the high part of the immediate move, if needed.
-  if (ImmHi) {
-	outs() <<"Select the high part\n";
-//	SDValue *x = new SDValue(Move, 0);
-//
-//	outs()<< "operands: " << x->getNumOperands() <<"\n";
-//	outs()<< "operands: " << x->getNode() <<"\n";
-    SDValue ConstHi = CurDAG->getTargetConstant(ImmHi >> 16, N, MVT::i32);
-    outs()<< "ImmHi: " << ImmHi <<"\n";
-    outs()<< "ImmHi >> 16: " << (ImmHi >> 16) <<"\n";
-    outs()<< "ImmLo: " << ImmLo <<"\n";
-    MachineSDNode *MoveHi;
-    //MoveHi = CurDAG->getMachineNode(TriCore::MOVHIi16, N, MVT::i32, ConstHi);
-		//Move = CurDAG->getMachineNode(TriCore::ADDi, N, MVT::i32, SDValue(MoveHi, 0),
-		//																ConstLo);
-		Move = CurDAG->getMachineNode(TriCore::MOVi32, N, MVT::i32, ImmValNode);
-    outs()<< Move <<"\n";
+
+  if (isInt<16>(ImmSExt)) {
+  	SDValue ImmValNode = CurDAG->getTargetConstant(ImmSExt, N, MVT::i32);
+  	return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ImmValNode);
   }
 
-  	return Move;
-}
+  if(isUInt<16>(ImmZExt) && ImmLo) {
+  	SDValue ImmValNode = CurDAG->getTargetConstant(ImmZExt, N, MVT::i32);
+  	return	CurDAG->getMachineNode(TriCore::MOVUrlc, N, MVT::i32, ImmValNode); //MOVLOi16
+  }
+
+  SDValue ImmValNode = CurDAG->getTargetConstant(ImmZExt, N, MVT::i32);
+  return CurDAG->getMachineNode(TriCore::MOVi32, N, MVT::i32, ImmValNode);
+
+ }
 
 static StringRef printCondCode(ISD::CondCode e) {
 
@@ -214,29 +239,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N, uint64_t code) {
 	EVT CompareTys[] = { MVT::i32 };
 	SDVTList CompareVT = CurDAG->getVTList(CompareTys);
 
-
-	//if(code == ISD::SETGT) {
-		return CurDAG->getMachineNode(opCode, N, MVT::Other, BranchOps);
-
-	//}
-
-
-
-	//return N;
-
-
-
-}
-
-SDNode *TriCoreDAGToDAGISel::SelectBRCC(SDNode* N) {
-
-	SDValue Chain = N->getOperand(0);
-	SDValue Cond = N->getOperand(1);
-	SDValue LHS = N->getOperand(2);
-	SDValue RHS = N->getOperand(3);
-	SDValue Target = N->getOperand(4);
-
-
+	return CurDAG->getMachineNode(opCode, N, MVT::Other, BranchOps);
 
 
 
@@ -278,8 +281,8 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 //  	outs().changeColor(raw_ostream::BLUE,1) <<"This is a load\n";
 //  	outs().changeColor(raw_ostream::WHITE,0);
 //  	break;
-  case ISD::ADDC:
-  	outs().changeColor(raw_ostream::BLUE,1) <<"This is a ADDC\n";
+  case ISD::TargetGlobalAddress:
+  	outs().changeColor(raw_ostream::BLUE,1) <<"This is a TargetGlobalAddress\n";
 		outs().changeColor(raw_ostream::WHITE,0);
 
 		break;

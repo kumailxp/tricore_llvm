@@ -109,7 +109,7 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     	outs().changeColor(raw_ostream::GREEN,1)<<"Offset: " << Offset << "\n" ;
     	outs().changeColor(raw_ostream::WHITE,0);
     	const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-    	MI.setDesc(TII.get(TriCore::MOVdRR));
+    	MI.setDesc(TII.get(TriCore::MOVDrr));
     	MI.getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
 
     	if (Offset == 0)

@@ -38,7 +38,8 @@ enum NodeType {
 	CMP,
 	CMPB,
 	BR_CC,
-	BR_CC_new
+	BR_CC_new,
+	Wrapper
 };
 }
 

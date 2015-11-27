@@ -112,6 +112,9 @@ unsigned TriCoreMCCodeEmitter::getMachineOpValue(const MCInst &MI,
   switch (cast<MCSymbolRefExpr>(Expr)->getKind()) {
   default:
     llvm_unreachable("Unknown fixup kind!");
+  case MCSymbolRefExpr::VK_TRICORE_LO_OFFSET:
+  case MCSymbolRefExpr::VK_TRICORE_HI_OFFSET:
+		return 0;
   case MCSymbolRefExpr::VK_TRICORE_LO: {
     FixupKind = TriCore::fixup_leg_mov_lo16_pcrel;
     break;

@@ -116,7 +116,6 @@ void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
                                        MachineBasicBlock &MBB) const {
   assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  //MSP430MachineFunctionInfo *MSP430FI = MF.getInfo<MSP430MachineFunctionInfo>();
   const TriCoreInstrInfo &TII =
       *static_cast<const TriCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
@@ -140,12 +139,9 @@ void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
     // Update the frame offset adjustment.
     MFI->setOffsetAdjustment(-NumBytes);
 
-    // Save FP into the appropriate stack slot...
-    //BuildMI(MBB, MBBI, DL, TII.get(MSP430::PUSH16r))
-    //  .addReg(MSP430::FP, RegState::Kill);
 
     // Update FP with the new base value...
-    BuildMI(MBB, MBBI, DL, TII.get(TriCore::MOVaaRR), TriCore::A14)
+    BuildMI(MBB, MBBI, DL, TII.get(TriCore::MOVAArr), TriCore::A14)
       .addReg(TriCore::A10);
 
     // Mark the FramePtr as live-in in every block except the entry.
@@ -173,11 +169,9 @@ void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
     // mergeSPUpdatesDown(MBB, MBBI, &NumBytes);
 
     if (NumBytes) {
-      MachineInstr *MI =
-        BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBria), TriCore::A10)
+       BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBria), TriCore::A10)
         .addReg(TriCore::A10).addImm(NumBytes);
-      // The SRW implicit def is dead.
-      //MI->getOperand(3).setIsDead();
+
     }
   }
 }

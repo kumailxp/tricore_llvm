@@ -55,37 +55,26 @@ def cc_val : Operand<i32> {
 }
 
 def memsrc : Operand<i32> {
-  let MIOperandInfo = (ops DataRegs, i32imm);
+  let MIOperandInfo = (ops AddrRegs, i32imm);
   let PrintMethod = "printAddrModeMemSrc";
   let EncoderMethod = "getMemSrcValue";
 }
-
-def i32imm_lo : Operand<i32>, ImmLeaf<i32, [{
-  return Imm >= 0 && Imm < 65536;
-}]>;
-
-def TriCoreimm8 : Operand<i32>, ImmLeaf<i32, [{
-  return Imm >= 0 && Imm < 256;
-}]>;
 
 //===----------------------------------------------------------------------===//
 // Custom Operand Definitions.
 //===----------------------------------------------------------------------===//
 
-//Operand
+//Operands
 def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
 def s4imm      : Operand<i32> { let PrintMethod = "printSExtImm<4>";  }
 def s16imm     : Operand<i32> { let PrintMethod = "printSExtImm<16>"; }
 def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
 def u4imm      : Operand<i32> { let PrintMethod = "printZExtImm<4>";  }
 def u9imm      : Operand<i32> { let PrintMethod = "printZExtImm<9>";  }
-
-//Node
-//def immSExt9 : ImmLeaf<i32, [{
-//  return Imm >= -256 && Imm < 256;
-//}]>;
+def u16imm      : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
 
 
+//Nodes
 def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
@@ -93,6 +82,7 @@ def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
 def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;
 def immZExt9 : ImmLeaf<i32, [{return Imm == (Imm & 0x1ff);}]>;
+def immZExt16 : ImmLeaf<i32, [{return Imm == (Imm & 0xffff);}]>;
 
 //===----------------------------------------------------------------------===//
 // Complex Pattern Definitions.
