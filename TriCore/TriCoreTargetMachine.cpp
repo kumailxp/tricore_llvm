@@ -25,7 +25,7 @@
 using namespace llvm;
 
 /*
-*  @brief This function calcultes the datalayout of TriCore architecture.
+*  @brief This function calculates the data layout of TriCore architecture.
 *
 *  Meaning of symbols:
 *  Pin | I/O  | Function |
@@ -39,9 +39,9 @@ static std::string computeDataLayout(const Triple &TT, StringRef CPU,
 }
 
 /** 
-@brief Creates a TriCore machine archietecture. 
+@brief Creates a TriCore machine architecture.
 *
-* The datalayout is described as below: 
+* The data layout is described as below:
 * e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:64-f32:32-f64:64-a:0:32-n32"
 * 
 *  Meaning of symbols:

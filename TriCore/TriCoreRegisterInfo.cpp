@@ -99,7 +99,7 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   default:
     // Not supported yet.
     return;
-  case TriCore::ADDri: {
+  case TriCore::ADDrc: {
     	//const LEGFrameLowering *TFI = getFrameLowering(MF);
     	int Offset = MFI->getObjectOffset(FI);
  	    Offset += MF.getFrameInfo()->getStackSize();
@@ -118,11 +118,11 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   		// We need to materialize the offset via add instruction.
   		unsigned DstReg = MI.getOperand(0).getReg();
   		if (Offset < 0) {
-  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
+  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDrc), DstReg)
   				.addReg(DstReg).addImm(Offset);
   		}
   		else
-  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDri), DstReg)
+  			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDrc), DstReg)
   				.addReg(DstReg).addImm(-Offset);
 
 

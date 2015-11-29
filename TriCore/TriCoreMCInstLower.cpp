@@ -43,7 +43,7 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
     Symbol = MO.getMBB()->getSymbol();
     break;
   case MachineOperand::MO_GlobalAddress: {
-  	outs()<<"MachineOperand::MO_GlobalAddress\n";
+  	//outs()<<"MachineOperand::MO_GlobalAddress\n";
     Symbol = Printer.getSymbol(MO.getGlobal());
     Offset += MO.getOffset();
     Offset = 0;
@@ -94,15 +94,15 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
 
   // Assume offset is never negative.
   assert(Offset > 0);
-  outs().changeColor(raw_ostream::BLUE,1)<<"MO_GlobalAddress->offset: "
-    																				<< Offset <<"\n";
+//  outs().changeColor(raw_ostream::BLUE,1)<<"MO_GlobalAddress->offset: "
+//    																				<< Offset <<"\n";
 
 
   const MCConstantExpr *OffsetExpr = MCConstantExpr::create(Offset, *Ctx);
   const MCBinaryExpr *Add = MCBinaryExpr::createAdd(MCSym, OffsetExpr, *Ctx);
-  Add->dump();
-  MCOperand::createExpr(Add).dump();
-  outs().changeColor(raw_ostream::WHITE,0);
+  //Add->dump();
+  //MCOperand::createExpr(Add).dump();
+  //outs().changeColor(raw_ostream::WHITE,0);
   return MCOperand::createExpr(Add);
 }
 

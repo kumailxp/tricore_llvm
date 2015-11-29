@@ -100,62 +100,10 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
 static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
                        ISD::CondCode CC,
                        SDLoc dl, SelectionDAG &DAG) {
-  // FIXME: Handle bittests someday
-  assert(!LHS.getValueType().isFloatingPoint() && "We don't handle FP yet");
-//
-//  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
-//  outs()<<printCondCode(CC)<<"\n";
 
-  //ISD::CondCode TCC = ISD::SETCC_INVALID;
-////	outs()<<printCondCode(CC)<<"\n";
-//  switch (CC) {
-//  default: llvm_unreachable("Invalid integer condition!");
-//  case ISD::SETLT:
-//  	TCC =  ISD::SETLT;
-//  	break;
-//  case ISD::SETLE:
-////  	if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
-////				LHS = RHS;
-////				RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-////				TCC =  ISD::SETGE;
-////				break;
-////			}
-//			TCC = ISD::SETGE;
-//			break;
-//  case ISD::SETGE:
-//    // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
-//    // fold constant into instruction.
-////    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
-////      LHS = RHS;
-////      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
-////      TCC =  ISD::SETGE;
-////      break;
-////    }
-//    TCC = ISD::SETGE;
-//    break;
-//  case ISD::SETGT:
-//    //std::swap(LHS, RHS);        // FALLTHROUGH#
-//    TCC = ISD::SETGT;
-//		break;
-//
-//  }
-//  SDValue CompareOps[] = {LHS, RHS, Chain};
-//  EVT CompareTys[] = { MVT::Other, MVT::Glue };
-//    //EVT CompareTys[] = { MVT::Other };
-//    SDVTList CompareVT = DAG.getVTList(CompareTys);
   TargetCC = DAG.getConstant(CC, dl, MVT::i32);
-  //TargetCC = DAG.getCondCode(TCC);
-//  return DAG.getNode(TriCoreISD::CMP, dl, CompareVT, CompareOps);
-
- // SDValue tmp = DAG.getNode(TriCoreISD::CMPB, dl, MVT::Other, LHS, RHS);
-//  outs()<< "Result No:" << tmp.getResNo() << "\n";
-
- // tmp.dump();
-
-  //return DAG.getNode(TriCoreISD::CMPB, dl,MVT::Other, LHS, RHS);
 }
-//
-//
+
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
@@ -164,27 +112,25 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Dest  = Op.getOperand(4);
   SDLoc dl  (Op);
 
-  SDValue TargetCC;
-  Op.getOperand(1).dump();
+  SDValue TargetCC = DAG.getConstant(CC, dl, MVT::i32);
+  //Op.getOperand(1).dump();
 
 
 
-  SDValue Flag = EmitCMP(Chain, LHS, RHS, TargetCC, CC, dl, DAG);
-
-
-  SDValue Zero = DAG.getConstant(0, dl, MVT::i32);
+  //SDValue Flag = EmitCMP(Chain, LHS, RHS, TargetCC, CC, dl, DAG);
+  //SDValue Zero = DAG.getConstant(0, dl, MVT::i32);
 
   outs()<<"TriCoreTargetLowering::LowerBR_CC\n";
 
   //RHS = DAG.getConstant(43, dl, MVT::i32);
   //LHS = DAG.getConstant(43, dl, MVT::i32);
 
-  outs()<< "Chain Node 0 Type:" << Chain.getValueType().getEVTString()<< "\n";
-  outs()<< "CondCode Node 1 Type:" << Op.getOperand(1).getValueType().getEVTString()<< "\n";
-
-  outs()<< "LHS Type:" << LHS.getValueType().getEVTString() << "\n";
-  outs()<< "RHS Type:" << RHS.getValueType().getEVTString() << "\n";
-  outs()<< "Dest Node 0 Type:" << Dest.getValueType().getEVTString()<< "\n";
+//  outs()<< "Chain Node 0 Type:" << Chain.getValueType().getEVTString()<< "\n";
+//  outs()<< "CondCode Node 1 Type:" << Op.getOperand(1).getValueType().getEVTString()<< "\n";
+//
+//  outs()<< "LHS Type:" << LHS.getValueType().getEVTString() << "\n";
+//  outs()<< "RHS Type:" << RHS.getValueType().getEVTString() << "\n";
+//  outs()<< "Dest Node 0 Type:" << Dest.getValueType().getEVTString()<< "\n";
 //    SDValue CompareOps[] = {Chain, TargetCC, Dest, LHS, RHS};
     SDValue CompareOps[] = {Chain, TargetCC, Dest, LHS, RHS};
     EVT CompareTys[] = { MVT::Other };
@@ -205,21 +151,23 @@ SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG)
 //	auto PtrVT = getPointerTy(DAG.getDataLayout());
 //
 //	// Create the TargetGlobalAddress node, folding in the constant offset.
-//	SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), PtrVT, Offset);
-//	return DAG.getNode(TriCoreISD::Wrapper, SDLoc(Op), PtrVT, Result);
+//	//SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), PtrVT, Offset);
+//	SDValue Result = DAG.getTargetGlobalAddress(GV, SDLoc(Op), MVT::i32, Offset);
+//	return DAG.getNode(TriCoreISD::Wrapper, SDLoc(Op), Op.getValueType(), Result);
+//	//return DAG.getNode(TriCoreISD::Wrapper, SDLoc(Op), PtrVT, Result);
 
 
 
 	EVT VT = Op.getValueType();
   GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
   int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
-  outs().changeColor(raw_ostream::RED,1)<< "Offset:Isel "<< Offset;
- 	Op.dump();
+  //outs().changeColor(raw_ostream::RED,1)<< "Offset:Isel "<< Offset;
+ 	//Op.dump();
   SDValue TargetAddr =
       DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
-  TargetAddr.dump();
-  outs().changeColor(raw_ostream::WHITE,0);
-  return DAG.getNode(TriCoreISD::LOAD_SYM, Op, VT, TargetAddr);
+  //TargetAddr.dump();
+  //outs().changeColor(raw_ostream::WHITE,0);
+  return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -397,6 +345,10 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(
 
   for (auto &VA : ArgLocs) {
     if (VA.isRegLoc()) {
+    	outs().changeColor(raw_ostream::YELLOW,1);
+    	outs() << "getValNo: " << VA.getValNo() <<"\n";
+    	outs() << "getLocReg: " << VA.getLocReg() <<"\n";
+
       // Arguments passed in registers
       EVT RegVT = VA.getLocVT();
       assert(RegVT.getSimpleVT().SimpleTy == MVT::i32 &&
@@ -404,8 +356,9 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(
       const unsigned VReg = RegInfo.createVirtualRegister(&TriCore::DataRegsRegClass);
       RegInfo.addLiveIn(VA.getLocReg(), VReg);
       SDValue ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT);
-
+      ArgIn.dump();
       InVals.push_back(ArgIn);
+      outs().changeColor(raw_ostream::WHITE,0);
       continue;
     }
 

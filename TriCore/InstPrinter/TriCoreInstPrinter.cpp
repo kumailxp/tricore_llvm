@@ -61,7 +61,7 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   	OS << "hi:";
   else if (Kind ==  MCSymbolRefExpr::VK_TRICORE_LO_OFFSET)
   	OS << "lo:";
-  outs()<< SRE->getSymbol() <<"\n";
+  //outs()<< SRE->getSymbol() <<"\n";
   OS << SRE->getSymbol();
   if (Offset) {
     if (Offset > 0) {
@@ -212,9 +212,9 @@ void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
 	// Print register base field
 	if (Base.getReg())
 			O << "[%" << StringRef(getRegisterName(Base.getReg())).lower() << ']';
-	outs().changeColor(raw_ostream::RED,1);
-	 Disp.dump();
-	outs().changeColor(raw_ostream::WHITE,0);
+//	outs().changeColor(raw_ostream::RED,1);
+//	 Disp.dump();
+//	outs().changeColor(raw_ostream::WHITE,0);
 
 	if (Disp.isExpr())
 		Disp.getExpr()->print(O, &MAI);

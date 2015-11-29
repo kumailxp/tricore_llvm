@@ -68,6 +68,7 @@ def memsrc : Operand<i32> {
 def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
 def s4imm      : Operand<i32> { let PrintMethod = "printSExtImm<4>";  }
 def s16imm     : Operand<i32> { let PrintMethod = "printSExtImm<16>"; }
+def s24imm     : Operand<i32> { let PrintMethod = "printSExtImm<24>"; }
 def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
 def u4imm      : Operand<i32> { let PrintMethod = "printZExtImm<4>";  }
 def u9imm      : Operand<i32> { let PrintMethod = "printZExtImm<9>";  }
@@ -78,6 +79,7 @@ def u16imm      : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
 def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
+def immSExt24  : PatLeaf<(imm), [{ return isInt<24>(N->getSExtValue()); }]>;
 
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
 def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;

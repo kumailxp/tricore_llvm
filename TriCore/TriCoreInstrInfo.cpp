@@ -74,7 +74,6 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 	bool DataRegsDest = TriCore::DataRegsRegClass.contains(DestReg);
 	bool DataRegsSrc = TriCore::DataRegsRegClass.contains(SrcReg);
 
-	outs()<<"==TriCoreInstrInfo::copyPhysReg==\n";
 	if (DataRegsDest && DataRegsSrc) {
 		outs()<<"==DataRegsDest && DataRegsSrc==\n";
 		BuildMI(MBB, I, DL, get(TriCore::MOVrr), DestReg)
@@ -274,7 +273,7 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
                     		.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 												.addReg(DstReg);
 
-		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDri))
+		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDrc))
                         		.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 														.addReg(DstReg);
 
@@ -300,14 +299,14 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 								.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 								.addReg(DstReg);
 
-		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDri))
+		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDrc))
   	            	.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 									.addReg(DstReg);
 
 		const GlobalValue *GV = MO.getGlobal();
-		const unsigned TF = MO.getTargetFlags();
-		outs()<<"MO.getOffset() "<< MO.getOffset() << "\n";
-		GV->dump();
+		//const unsigned TF = MO.getTargetFlags();
+//		outs()<<"MO.getOffset() "<< MO.getOffset() << "\n";
+//		GV->dump();
 		HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
 		ADDI16 = ADDI16.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
 

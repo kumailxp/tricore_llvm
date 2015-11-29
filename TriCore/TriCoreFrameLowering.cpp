@@ -112,7 +112,7 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
 
 
 
-void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
+void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
                                        MachineBasicBlock &MBB) const {
   assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
   MachineFrameInfo *MFI = MF.getFrameInfo();
@@ -169,51 +169,10 @@ void TriCoreFrameLowering::emitPrologue_thesis(MachineFunction &MF,
     // mergeSPUpdatesDown(MBB, MBBI, &NumBytes);
 
     if (NumBytes) {
-       BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBria), TriCore::A10)
-        .addReg(TriCore::A10).addImm(NumBytes);
+       BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBAsc)).addImm(NumBytes);
 
     }
   }
-}
-
-
-
-
-void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
-                                    MachineBasicBlock &MBB) const {
-
-
-
-	return emitPrologue_thesis(MF, MBB);
-
-  // Compute the stack size, to determine if we need a prologue at all.
-  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-  MachineBasicBlock::iterator MBBI = MBB.begin();
-  DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
-  uint64_t StackSize = computeStackSize(MF);
-  if (!StackSize) {
-//	outs() << "ends in if!\n";
-    return;
-  }
-  outs() << "goes ahead!\n";
-
-  // Adjust the stack pointer.
-  unsigned StackReg = TriCore::A10;
-  unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
-  if (OffsetReg) {
-    BuildMI(MBB, MBBI, dl, TII.get(TriCore::SUBrr), StackReg)
-        .addReg(StackReg)
-        .addReg(OffsetReg)
-        .setMIFlag(MachineInstr::FrameSetup);
-  } else {
-    BuildMI(MBB, MBBI, dl, TII.get(TriCore::SUBri), StackReg)
-        .addReg(StackReg)
-        .addImm(StackSize)
-        .setMIFlag(MachineInstr::FrameSetup);
-  }
-
-  outs() << "ends\n";
-
 }
 
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,

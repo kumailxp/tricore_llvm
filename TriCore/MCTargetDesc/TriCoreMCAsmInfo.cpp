@@ -16,8 +16,8 @@ void TriCoreMCAsmInfo::anchor() {}
 TriCoreMCAsmInfo::TriCoreMCAsmInfo(const Triple &TT) {
   SupportsDebugInformation = true;
   Data16bitsDirective = "\t.short\t";
-  Data32bitsDirective = "\t.long\t";
-  Data64bitsDirective = 0;
+  Data32bitsDirective = "\t.word\t";
+  Data64bitsDirective = "\t.64bit\t";
   ZeroDirective = "\t.space\t";
   CommentString = "#";
 
