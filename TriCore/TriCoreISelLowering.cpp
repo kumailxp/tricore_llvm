@@ -166,6 +166,7 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   CallingConv::ID CallConv = CLI.CallConv;
   const bool isVarArg = CLI.IsVarArg;
 
+
   CLI.IsTailCall = false;
 
   if (isVarArg) {
@@ -173,6 +174,7 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   }
 
   outs()<<"LowerCall\n";
+  outs()<<"InVal size: " << InVals.size() << "\n";
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
@@ -195,19 +197,24 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 	Callee = DAG.getTargetGlobalAddress(G->getGlobal(), Loc, MVT::i32);
 
 	int32_t originalArgPos = TCCH.findInRegRecord(G->getGlobal()->getName());
+	uint32_t argNum = TCCH.getNumOfArgs(G->getGlobal()->getName());
   TCCH.init();
   TCCH.setArgPos(originalArgPos);
   outs()<< "ArgPos: " << TCCH.getArgPos() <<"\n";
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
+
+    if(i<argNum)
+    	VA.convertToReg(TCCH.getRegRecordRegister(TCCH.getArgPos()));
     SDValue Arg = OutVals[i];
+    Arg.dump();
     // We only handle fully promoted arguments.
     assert(VA.getLocInfo() == CCValAssign::Full && "Unhandled loc info");
 
     if (VA.isRegLoc()) {
     	RegsToPass.push_back(
-    					std::make_pair(TCCH.getRegRecordRegister(TCCH.getArgPos()), Arg));
+    					std::make_pair(VA.getLocReg(), Arg));
     	TCCH.incrArgPos();
       //RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
       continue;
@@ -248,12 +255,12 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
   }
 
   // Add a register mask operand representing the call-preserved registers.
-//  const uint32_t *Mask;
-//  const TargetRegisterInfo *TRI = DAG.getSubtarget().getRegisterInfo();
-//  Mask = TRI->getCallPreservedMask(DAG.getMachineFunction(), CallConv);
-//
-//  assert(Mask && "Missing call preserved mask for calling convention");
-//  Ops.push_back(DAG.getRegisterMask(Mask));
+  const uint32_t *Mask;
+  const TargetRegisterInfo *TRI = DAG.getSubtarget().getRegisterInfo();
+  Mask = TRI->getCallPreservedMask(DAG.getMachineFunction(), CallConv);
+
+  assert(Mask && "Missing call preserved mask for calling convention");
+  Ops.push_back(DAG.getRegisterMask(Mask));
 
 		if (InFlag.getNode()) {
 			Ops.push_back(InFlag);
@@ -310,109 +317,111 @@ SDValue TriCoreTargetLowering::LowerCallResult(
 /// TriCore formal arguments implementation
 
 //Called when function in entered
-SDValue TriCoreTargetLowering::LowerFormalArguments(
-    SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-    const SmallVectorImpl<ISD::InputArg> &Ins, SDLoc dl, SelectionDAG &DAG,
-    SmallVectorImpl<SDValue> &InVals) const {
-  MachineFunction &MF = DAG.getMachineFunction();
-  MachineRegisterInfo &RegInfo = MF.getRegInfo();
+SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
+		CallingConv::ID CallConv, bool isVarArg,
+		const SmallVectorImpl<ISD::InputArg> &Ins, SDLoc dl, SelectionDAG &DAG,
+		SmallVectorImpl<SDValue> &InVals) const {
+	MachineFunction &MF = DAG.getMachineFunction();
+	MachineRegisterInfo &RegInfo = MF.getRegInfo();
 
-  assert(!isVarArg && "VarArg not supported");
+	assert(!isVarArg && "VarArg not supported");
 
-  // Assign locations to all of the incoming arguments.
-  SmallVector<CCValAssign, 16> ArgLocs;
+	// Assign locations to all of the incoming arguments.
+	SmallVector<CCValAssign, 16> ArgLocs;
 
-  //get incoming arguments information
-  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
-                 *DAG.getContext());
+	//get incoming arguments information
+	CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
+			*DAG.getContext());
 
-  StringRef funName = DAG.getMachineFunction().getFunction()->getName();
+	unsigned ValNo=0;
+
+	StringRef funName = DAG.getMachineFunction().getFunction()->getName();
 
 //  DAG.getMachineFunction().getFunction()
-  CCInfo.AnalyzeFormalArguments(Ins, CC_TriCore);
-  CCValAssign VA;
-  TCCH.init();
+	CCInfo.AnalyzeFormalArguments(Ins, CC_TriCore);
 
-  outs()<<"ArgLoc Size: " <<ArgLocs.size() <<"\n";
-  for(uint32_t i = 0; i<ArgLocs.size(); i++) {
-  	unsigned DataReg;
-  	VA = ArgLocs[i];
-  	if(TCCH.isRegValPtrType(MF)){
-  		//Is there any address register available?
-  		unsigned AddrReg = TCCH.getNextAddrRegs(funName);
-  		if ( AddrReg != UNKNOWN_REG)
-  			VA.convertToReg(AddrReg);
-  	}
-  	else
-  	{
-  		DataReg = TCCH.getNextDataRegs(funName);
-			if ( DataReg != UNKNOWN_REG)
+	CCValAssign VA;
+	TCCH.init();
+
+//	outs() << "ArgLoc Size: " << ArgLocs.size() << "\n";
+
+	for (uint32_t i = 0; i < ArgLocs.size(); i++) {
+		VA = ArgLocs[i];
+
+		SDValue ArgIn;
+		unsigned AddrReg;
+		if (TCCH.isRegValPtrType(MF)) {
+			//Is there any address register available?
+			AddrReg = TCCH.getNextAddrRegs(funName);
+			if (AddrReg != UNKNOWN_REG)
+				VA.convertToReg(AddrReg);
+		  } else {
+			unsigned DataReg = TCCH.getNextDataRegs(funName);
+			if (DataReg != UNKNOWN_REG)
 				VA.convertToReg(DataReg);
-  	}
+		}
+		if (VA.isRegLoc()) {
+			// Arguments passed in registers
+			EVT RegVT = VA.getLocVT();
+			assert(RegVT.getSimpleVT().SimpleTy == MVT::i32
+							&& "Only support MVT::i32 register passing");
+
+			unsigned VReg;
+
+//			outs() << "TCCH curPos: " << TCCH.getCurPos() << "\n";
+			// If the argument is a pointer type then create a AddrRegsClass
+			// Virtual register.
+			if (TCCH.isRegValPtrType(MF)) {
+				VReg = RegInfo.createVirtualRegister(&TriCore::AddrRegsRegClass);
+				RegInfo.addLiveIn(VA.getLocReg(), VReg); //mark the register is inuse
+				TCCH.saveRegRecord(funName, VA.getLocReg(), true);
+				TCCH++;
+				ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT, MVT::iPTR);
+			}
+			// else place it inside a data register.
+			else {
+				VReg = RegInfo.createVirtualRegister(&TriCore::DataRegsRegClass);
+				RegInfo.addLiveIn(VA.getLocReg(), VReg); //mark the register is inuse
+				TCCH.saveRegRecord(funName, VA.getLocReg(), false);
+				ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT, MVT::i32);
+				TCCH++;
+			}
 
 
-     if (VA.isRegLoc()) {
-      // Arguments passed in registers
-      EVT RegVT = VA.getLocVT();
-      assert(RegVT.getSimpleVT().SimpleTy == MVT::i32 &&
-             "Only support MVT::i32 register passing");
-
-      unsigned VReg;
-
-      outs()<<"TCCH curPos: "<<TCCH.getCurPos() <<"\n";
-      // If the argument is a pointer type then create a AddrRegsClass
-      // Virtual register.
-      if(TCCH.isRegValPtrType(MF) ){
-      	VReg =	RegInfo.createVirtualRegister(&TriCore::AddrRegsRegClass);
-      	RegInfo.addLiveIn(VA.getLocReg() , VReg); //mark the register is inuse
-      	TCCH.saveRegRecord(funName, VA.getLocReg(), true);
-      	TCCH++;
-      	//i--;
-      	//continue;
-      }
-      // else place it inside a data register.
-      else {
-      	VReg = RegInfo.createVirtualRegister(&TriCore::DataRegsRegClass);
-      	RegInfo.addLiveIn(DataReg, VReg); //mark the register is inuse
-      	TCCH.saveRegRecord(funName, DataReg,false);
-      	TCCH++;
-      }
-
-			SDValue ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT);
 			InVals.push_back(ArgIn);
 			TCCH.incrArgPos();
-      continue;
-    }
+			continue;
+		}
 
-    assert(VA.isMemLoc() &&
-           "Can only pass arguments as either registers or via the stack");
-    outs()<<"VA.isMemLoc()\n";
-    const unsigned Offset = VA.getLocMemOffset();
+		assert(
+				VA.isMemLoc()
+						&& "Can only pass arguments as either registers or via the stack");
+		outs() << "VA.isMemLoc()\n";
+		const unsigned Offset = VA.getLocMemOffset();
 
-    // create stack offset it the input argument is placed in memory
-    const int FI = MF.getFrameInfo()->CreateFixedObject(4, Offset, true);
-    EVT PtrTy = getPointerTy(DAG.getDataLayout());
-    SDValue FIPtr = DAG.getFrameIndex(FI, PtrTy);
+		// create stack offset it the input argument is placed in memory
+		const int FI = MF.getFrameInfo()->CreateFixedObject(4, Offset, true);
+		EVT PtrTy = getPointerTy(DAG.getDataLayout());
+		SDValue FIPtr = DAG.getFrameIndex(FI, PtrTy);
 
-    assert(VA.getValVT() == MVT::i32 &&
-           "Only support passing arguments as i32");
+		assert(
+				VA.getValVT() == MVT::i32 && "Only support passing arguments as i32");
 
-    //create a load node for the created frame object
-    SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
-                               MachinePointerInfo(), false, false, false, 0);
+		//create a load node for the created frame object
+		SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
+				MachinePointerInfo(), false, false, false, 0);
 
-    InVals.push_back(Load);
-    TCCH.incrArgPos();
-  }
+		InVals.push_back(Load);
+		TCCH.incrArgPos();
+	}
 
-  TCCH.setCurPos(0);
-  TCCH.printRegRecord();
+	TCCH.setCurPos(0);
+	TCCH.printRegRecord();
 //  for(int i=0; i<3; i++) {
 //  	outs()<<"REg: "<<TCCH.getRegRecordRegister(i)<<"\n";
 //  }
 
-
-  return Chain;
+	return Chain;
 }
 
 //===----------------------------------------------------------------------===//

@@ -109,10 +109,20 @@ unsigned TriCoreCallingConvHook::getNextDataRegs(StringRef fName) {
 
 	if (lastReg == TriCore::D7)
 		return UNKNOWN_REG;
-	outs() <<"Next Data Reg: " << lastReg + 1 <<"\n";
 	return lastReg + 1;
 }
 
+uint32_t TriCoreCallingConvHook::getNumOfArgs(StringRef fName) {
+
+	uint32_t count = 0;
+	for (auto& rec : regRecord) {
+		if(rec.fName.compare(fName)==0)
+			count++;
+	}
+
+	return count;
+
+}
 
 
 TriCoreCallingConvHook TCCH;

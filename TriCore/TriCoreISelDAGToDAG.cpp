@@ -317,81 +317,11 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 				//Offset = CurDAG->getTargetConstant(gAdd->getOffset(), Addr, MVT::i32);
 				return false;
 	}
-//	SDValue Addr0 = Addr.getOperand(0);
-//	if(GlobalAddressSDNode *gAdd = dyn_cast<GlobalAddressSDNode>(Addr0)) {
-//		outs()<<"This is working!!!!!!!!!!!!!!\n";
-//		Base = Addr;
-//		Offset = CurDAG->getTargetConstant(gAdd->getOffset(), Addr, MVT::i32);
-//		return true;
-//	}
-
-//	SDValue N0 = Addr.getOperand(0);
-//	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N0)) {
-//		EVT VT = Addr.getValueType();
-//		Base = CurDAG->getRegister(0, VT);
-//			//Base = G->getGlobal();
-//	   // Offset += G->getOffset();
-//	   // outs()<< "Displacement: " << Offset << "\n";
-//
-//	    Offset = CurDAG->getTargetGlobalAddress(G->getGlobal(), SDLoc(Addr),
-//	  				MVT::i32, 4,
-//					0/*AM.SymbolFlags*/);
-//	  	//Disp.dump();
-//
-//	  	GlobalAddressSDNode* GG = cast<GlobalAddressSDNode>(Offset);
-//	  	outs() << "Offset: " << GG->getOffset() << "\n";
-//	    return true;
-//	    //AM.SymbolFlags = G->getTargetFlags();
-//	  }
-
-  if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
-      Addr.getOpcode() == ISD::TargetGlobalAddress ||
-      Addr.getOpcode() == ISD::TargetGlobalTLSAddress) {
-
-  	outs().changeColor(raw_ostream::BLUE,1);
-		Addr.dump();
-		outs().changeColor(raw_ostream::WHITE,0);
-
-    return false; // direct calls.
-  }
 
   Base = Addr;
   Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
   return true;
 }
-
-//SDNode *TriCoreDAGToDAGISel::SelectMoveImmediate(SDNode *N) {
-//  // Make sure the immediate size is supported.
-//  ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
-//  int64_t ImmSExt = ConstVal->getSExtValue();
-//  int64_t ImmZExt = ConstVal->getZExtValue();
-//  DEBUG(errs() <<"ImmSExt: "<<  ImmSExt; );
-//  DEBUG(errs() <<"ImmZExt: "<<  ImmZExt; );
-//  DEBUG(errs().changeColor(raw_ostream::BLUE,1) << "Is this 16SExt?: "
-//    		<< isInt<16>(ImmSExt) << "\n" << "Is this 16ZExt?: "
-//				<< isUInt<16>(ImmZExt) << "\n"; );
-//
-//  outs().changeColor(raw_ostream::WHITE,0);
-//
-//  // Select the low part of the immediate move.
-//  uint64_t LoMask = 0xffff;
-//  uint64_t ImmLo = (ImmZExt & LoMask);
-//
-//
-//  if (isInt<16>(ImmSExt)) {
-//  	SDValue ImmValNode = CurDAG->getTargetConstant(ImmSExt, N, MVT::i32);
-//  	return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ImmValNode);
-//  }
-//
-//  if(isUInt<16>(ImmZExt) && ImmLo) {
-//  	SDValue ImmValNode = CurDAG->getTargetConstant(ImmZExt, N, MVT::i32);
-//  	return	CurDAG->getMachineNode(TriCore::MOVUrlc, N, MVT::i32, ImmValNode); //MOVLOi16
-//  }
-//
-//  SDValue ImmValNode = CurDAG->getTargetConstant(ImmZExt, N, MVT::i32);
-//  return CurDAG->getMachineNode(TriCore::MOVi32, N, MVT::i32, ImmValNode);
-//
-// }
 
 static StringRef printCondCode(ISD::CondCode e) {
 
@@ -456,10 +386,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N, uint64_t code) {
 				realCond=ISD::SETNE;
 				opCode = TriCore::JNEbrr;
 				break;
-
-
 	}
-
 
 	outs().changeColor(raw_ostream::BLUE,1);
 	Cond.dump();
@@ -475,13 +402,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N, uint64_t code) {
 	SDValue CCVal = CurDAG->getTargetConstant(realCond, N, MVT::i32);
 //	CCVal.dump();
 	SDValue BranchOps[] = {CCVal,  Target, LHS, RHS };
-//
-
-
 	return CurDAG->getMachineNode(opCode, N, MVT::Other, BranchOps);
-
-
-
 }
 
 
@@ -494,26 +415,16 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
   DEBUG(errs() << "\n");
 
   switch (N->getOpcode()) {
-  //case ISD::Constant:
-  //  return SelectMoveImmediate(N);
-//  case ISD::STORE:
-//  	outs().changeColor(raw_ostream::GREEN) << "This is a store!\n";
-//  	outs().changeColor(raw_ostream::WHITE);
-//  	break;
-//  case ISD::BR_CC:
-//  	return SelectConditionalBranch(N);
   case ISD::FrameIndex: {
    	//FrameIndexSDNode *FSDNode = cast<FrameIndexSDNode>(N);
-  	outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
+  	//outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
   	int FI = cast<FrameIndexSDNode>(N)->getIndex();
   	//N->dump(CurDAG);
   	SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
   	if (N->hasOneUse()) {
-
-  	    	return CurDAG->SelectNodeTo(N, TriCore::ADDrc, MVT::i32, TFI,
-  																			CurDAG->getTargetConstant(0, dl, MVT::i32));
-
-  	    }
+ 	    	return CurDAG->SelectNodeTo(N, TriCore::ADDrc, MVT::i32, TFI,
+  																	CurDAG->getTargetConstant(0, dl, MVT::i32));
+    }
   	return CurDAG->getMachineNode(TriCore::ADDrc, dl, MVT::i32, TFI,
 																CurDAG->getTargetConstant(0, dl, MVT::i32));
   	}
@@ -523,35 +434,30 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
   	StringRef fname= MF->getFunction()->getName();
   	StoreSDNode* _SD  = cast<StoreSDNode>(N);
   	if(_SD->getOperand(1).getOpcode() == ISD::CopyFromReg ) {
+  		SDValue _cfreg = N->getOperand(1);
+  		SDNode *_cfNode = cast<SDNode>(_cfreg);
+  		EVT *tempEVT = new EVT(MVT::SimpleValueType(_cfNode->getArgType()));
+  		outs()<<"_cfNode type: " << tempEVT->getEVTString() << "\n";
   		//RegisterSDNode* _rsd = cast<RegisterSDNode>(_cfreg.getOperand(1));
+   		//outs()<<"Reg type: " << _rsd->getValueType(0).getEVTString() << "\n";
+   		//outs()<<"Reg Arg type: " << _rsd->getArgType() << "\n";
   		uint32_t _index = TCCH.findInRegLastRecord(fname);
+  		outs()<<"_index: " << _index << "\n";
+  		outs()<<"TCCH.getCurPos(): " << TCCH.getCurPos() << "\n";
   		ptyType =TCCH.getRegRecordisPointer( _index - TCCH.getCurPos() ) ;
   		TCCH++;
   	}
   	break;
   }
   case TriCoreISD::BR_CC:
-
   	//SDValue op1 = N->getOperand(0);
   	SDValue op2 = N->getOperand(1);
-
   	ConstantSDNode *op4 = cast<ConstantSDNode>(op2);
   	//CondCodeSDNode *op9 = cast<CondCodeSDNode>(op2);
-
   	outs().changeColor(raw_ostream::BLUE,1) <<"This is a BR_CC\n";
-  	//op1.dump();
-  	//op2.dump();
-  	//op4->dump();
-  	//outs() << printCondCode(op9->get()) <<"\n";
 		outs().changeColor(raw_ostream::WHITE,0);
   	return SelectConditionalBranch(N, op4->getZExtValue());
-
-
-
-
   	break;
-
-
   }
 
   SDNode *ResNode = SelectCode(N);

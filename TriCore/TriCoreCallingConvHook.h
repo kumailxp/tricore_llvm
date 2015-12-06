@@ -56,13 +56,14 @@ public:
 	int32_t findInRegRecord(StringRef funString);
 	int32_t findInRegLastRecord(StringRef funString);
 
-	uint32_t getCurPos() const {	return curPos;}
+	uint32_t getCurPos() const {	return this->curPos;}
 	uint32_t getArgPos() const {	return curArg;}
 	unsigned getNextAddrRegs(StringRef fName);
 	unsigned getNextDataRegs(StringRef fName);
 	bool getRegRecordisPointer(uint32_t pos);
 	StringRef getFunctionName(uint32_t pos);
 	unsigned getRegRecordRegister(uint32_t pos);
+	uint32_t getNumOfArgs(StringRef fName);
 
 	void saveRegRecord(StringRef funName, unsigned reg, bool isPointer);
 	void printRegRecord();
