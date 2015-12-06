@@ -131,12 +131,16 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
                                           const TargetRegisterClass *RC,
                                           const TargetRegisterInfo *TRI) const
 {
-
+	outs().changeColor(raw_ostream::BLUE,1);
+	outs()<<"loadRegFromStackSlot\n";
+	outs().changeColor(raw_ostream::WHITE,0);
 	DebugLoc DL;
 	if (I != MBB.end()) DL = I->getDebugLoc();
 	MachineFunction &MF = *MBB.getParent();
 	MachineFrameInfo &MFI = *MF.getFrameInfo();
 
+	// issues the machine instruction “ld $r, offset($sp)”
+	// to load incoming arguments from stack frame offset
 	MachineMemOperand *MMO =
 			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
 					MachineMemOperand::MOLoad,
@@ -253,7 +257,7 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
 ///////////////////////////////////////////
 
-
+//
 bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 {
 	switch (MI->getOpcode())
@@ -270,48 +274,29 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 		const MachineOperand &MO = MI->getOperand(1);
 		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHIi16))
-                    		.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-												.addReg(DstReg);
+                    						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+																.addReg(DstReg);
 
-		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDrc))
-                        		.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-														.addReg(DstReg);
+		auto ADDIrlc = BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
+                        						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+																		.addReg(DstReg);
+		if (MO.isImm()) {
+			const unsigned Imm = MO.getImm();
+			const unsigned Lo16 = Imm & 0xffff;
+			const unsigned Hi16 = (Imm >> 16) & 0xffff;
+			HI16 = HI16.addImm(Hi16);
+			if(!(Imm==0))
+				ADDIrlc = ADDIrlc.addImm(Lo16);
+		} else {
+			//outs()<<"MO.getGlobal()\n";
+			const GlobalValue *GV = MO.getGlobal();
+			const unsigned TF = MO.getTargetFlags();
+			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
+			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
+		}
 
-		const unsigned Imm = MO.getImm();
-		const unsigned Lo16 = Imm & 0xffff;
-		const unsigned Hi16 = (Imm >> 16) & 0xffff;
-		HI16 = HI16.addImm(Hi16);
-		if(!(Imm==0))
-				ADDI16 = ADDI16.addImm(Lo16);
 		MBB.erase(MI);
 		return true;
 	}
-	case TriCore::MOVAi32: {
-		DebugLoc DL = MI->getDebugLoc();
-		MachineBasicBlock &MBB = *MI->getParent();
-
-		const unsigned DstReg = MI->getOperand(0).getReg();
-		const bool DstIsDead = MI->getOperand(0).isDead();
-
-		const MachineOperand &MO = MI->getOperand(1);
-
-		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHIi16))
-								.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-								.addReg(DstReg);
-
-		auto ADDI16 = BuildMI(MBB, MI, DL, get(TriCore::ADDrc))
-  	            	.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-									.addReg(DstReg);
-
-		const GlobalValue *GV = MO.getGlobal();
-		//const unsigned TF = MO.getTargetFlags();
-//		outs()<<"MO.getOffset() "<< MO.getOffset() << "\n";
-//		GV->dump();
-		HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
-		ADDI16 = ADDI16.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
-
-		MBB.erase(MI);
-		return true;
-		}
 	}
 }

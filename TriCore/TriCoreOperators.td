@@ -28,6 +28,7 @@ def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_TriCoreCallSeqStart,
 def callseq_end   : SDNode<"ISD::CALLSEQ_END",   SDT_TriCoreCallSeqEnd,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
+//def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
 
 //===----------------------------------------------------------------------===//

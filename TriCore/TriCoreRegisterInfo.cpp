@@ -100,6 +100,8 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // Not supported yet.
     return;
   case TriCore::ADDrc: {
+  		//MF.dump();
+  		//outs() <<""
     	//const LEGFrameLowering *TFI = getFrameLowering(MF);
     	int Offset = MFI->getObjectOffset(FI);
  	    Offset += MF.getFrameInfo()->getStackSize();
@@ -131,6 +133,7 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   case TriCore::LDR:
   case TriCore::STR:
+  case TriCore::STAbol:
     ImmOpIdx = FIOperandNum + 1;
     break;
   }

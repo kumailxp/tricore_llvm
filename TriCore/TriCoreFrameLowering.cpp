@@ -177,35 +177,6 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
 
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
-  // Compute the stack size, to determine if we need an epilogue at all.
-//  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
-//  MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
-//  DebugLoc dl = MBBI->getDebugLoc();
-//  uint64_t StackSize = computeStackSize(MF);
-//  outs() << "emitEpilogue start\n";
-//  if (!StackSize) {
-//    return;
-//  }
-//
-//  outs() << "emitEpilogue start\n";
-//
-//  // Restore the stack pointer to what it was at the beginning of the function.
-//  unsigned StackReg = TriCore::A10;
-//  unsigned OffsetReg = materializeOffset(MF, MBB, MBBI, (unsigned)StackSize);
-//  if (OffsetReg) {
-//    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDrr), StackReg)
-//        .addReg(StackReg)
-//        .addReg(OffsetReg)
-//        .setMIFlag(MachineInstr::FrameSetup);
-//  } else {
-//    BuildMI(MBB, MBBI, dl, TII.get(TriCore::ADDri), StackReg)
-//        .addReg(StackReg)
-//        .addImm(StackSize)
-//        .setMIFlag(MachineInstr::FrameSetup);
-//  }
-//
-//  outs() << "emitEpilogue ends\n";
-
 }
 
 // This function eliminates ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo

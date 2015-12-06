@@ -31,7 +31,7 @@ def TriCorecmpb    : SDNode<"TriCoreISD::CMPB", SDTIntBinOp, [ ]>;
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
                                                  [SDNPHasChain]>;
-def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDTIntUnaryOp>;
+def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 
 
 def jmptarget : Operand<OtherVT> {
@@ -43,13 +43,18 @@ def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
 
+
+
+def isPointer : Predicate<"isPointer() == true">;
+def isnotPointer : Predicate<"isPointer() == false">;
+
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
 
 
 def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
-               ,"addi $d, $const4",
+               ,"add $d, $const4",
                [(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>
 {
 	let Constraints = "$s1 = $d";
@@ -58,9 +63,14 @@ def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
 def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 				  "add $d, $s1, $s2",
     	       [(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]>;
+
 def ADDrc : RC<0x8B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const9)
                ,"add $d, $s1, $const9",
                [(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
+
+def ADDIrlc : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const16)
+               ,"addi $d, $s1, $const16",
+               [(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16) )]>;
 
 def ADDArc : RC<0x8B, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s1, i32imm:$const9)
                ,"addi $d, $s1, $const9",
@@ -186,10 +196,14 @@ def NOTsr : SR<0x46, 0x0, (outs DataRegs: $d), (ins DataRegs:$s1),
 
 def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
 				"mov $d, $s2", [ ]>;
+
+
 def MOVDrr : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
 				"mov.d $d, $s2", [ ]>;
+
 def MOVArr : RR<0x01, 0x63, (outs AddrRegs:$d), (ins DataRegs:$s2),
 				"mov.a $d, $s2", [ ]>;
+
 def MOVAArr : RR<0x01, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s2),
 				"mov.aa $d, $s2", [ ]>;
 
@@ -209,37 +223,42 @@ def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16),
 	let Constraints = "$fakesrc = $d";
 }
 
-def MOVi32 : RLC<0x00, (outs DataRegs:$d), (ins i32imm:$const16), "",
+let isReMaterializable = 1, isAsCheapAsAMove = 1 in
+def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOV32 Pseudo",
                      [(set i32:$d, (movei32 imm:$const16))]> {
   let isPseudo = 1;
 }
 
-def MOVAi32 : RLC<0x00,(outs DataRegs:$d), (ins i32imm:$const16), "",
-                     [(set i32:$d, (movei32 i32:$const16))]> {
-  let isPseudo = 1;
-}
-
+//let isReMaterializable = 1, isAsCheapAsAMove = 1 in {
+//	def MOVAi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOVA32 Pseudo",
+//											 [(set i32:$d, (movei32 imm:$const16))]> {
+//		let isPseudo = 1;
+//	}
+//}
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
-let mayLoad = 1 in {
+let mayLoad = 1 in
 	def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
 										 "ldr $s1_d, $off16",
-										 [(set DataRegs:$s1_d, (load addr:$off16))]> {
-	}
-}
+										 [(set DataRegs:$s1_d, (load addr:$off16))]>;
 
+let Predicates = [isnotPointer] in 
 def STR : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
-                  "str $off16, $s1_d",
-                  [(store DataRegs:$s1_d, addr:$off16)]> {
-}
+                  "st.w $off16, $s1_d",
+                  [(store DataRegs:$s1_d, addr:$off16)]>;
+
+let Predicates = [isPointer] in 
+def STAbol : BOL<0x63,(outs), (ins AddrRegs:$s1_d, memsrc:$off16),
+                  "st.a $off16, $s1_d",
+                  [(store i32:$s1_d, addr:$off16)]>;
 
 //===----------------------------------------------------------------------===//
 // Return Instructions
 //===----------------------------------------------------------------------===//
 
-let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [A11] in {
+let isTerminator = 1, isReturn = 1, isBarrier = 1 in {
   def RET : T32<(outs), (ins variable_ops),
                     "ret",  [(TriCoreRetFlag)]> {
     let Inst{27-0}  = 0b0001001011111111111100011110;
@@ -251,12 +270,8 @@ let isTerminator = 1, isReturn = 1, isBarrier = 1, Uses = [A11] in {
 //===----------------------------------------------------------------------===//
 
 let isCall = 1, Defs = [A11], Uses = [A10] in {
-  def BL : B<0x6D, (outs), (ins DataRegs:$addr),
-                      "call $addr",  [(tricore_call i32:$addr)]> {
-  	bits<4> addr;
-		let Inst{31-28} = 0b1110;
-		let Inst{3-0} = addr;
-  }
+  def BL : B<0x6D, (outs), (ins i32imm:$disp),
+                      "call $disp ",  [(tricore_call imm:$disp)]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -314,15 +329,6 @@ let isBranch =1, isTerminator = 1 in {
 }// isBranch, isTerminator
 		
 
-def : Pattern<(i32 (TriCoreWrapper tglobaladdr:$addr)), 
-		[ (MOVAi32 $addr)]>;
-
-//def : Pattern<(i32 (load_sym tglobaladdr:$addr)), 
-//		[ (MOVAi32 $addr)]>;
-
-//def : Pat<(add AddrRegs:$src, (load_sym tglobaladdr :$src2)),
-//          (ADDari AddrRegs:$src, tglobaladdr:$src2)>;
-
 //===----------------------------------------------------------------------===//
 // Pseudo Instructions
 //===----------------------------------------------------------------------===//
@@ -337,5 +343,24 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
 }
 
 
-def : Pat<(add DataRegs:$s1, -1),
-          (ADDsrc DataRegs:$s1, -1)>;
+//def : Pat<(add DataRegs:$s1, -1),
+//          (ADDsrc DataRegs:$s1, -1)>;
+
+
+//def : Pat<(i16 (MSP430Wrapper tglobaladdr:$dst)), (MOV16ri tglobaladdr:$dst)>;
+//def : Pat<(MSP430call (i16 tglobaladdr:$dst)),
+//          (CALLi tglobaladdr:$dst)>;
+def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
+          (BL tglobaladdr:$dst)>;
+
+def : Pat<(i32 immSExt16:$src),
+					(MOVrlc immSExt16:$src)>;
+
+def : Pat<(i32 immZExt16:$src),
+					(MOVUrlc immZExt16:$src)>;
+
+def : Pat<(i32 imm:$src),
+					(MOVi32 imm:$src)>;
+
+def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
+		 (MOVi32 tglobaladdr:$dst)>;
