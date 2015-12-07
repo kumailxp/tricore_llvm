@@ -173,15 +173,14 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     llvm_unreachable("Unimplemented");
   }
 
-  outs()<<"LowerCall\n";
-  outs()<<"InVal size: " << InVals.size() << "\n";
+
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
                  *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_TriCore);
 
-  // Get the size of the outgoing arguments stack space requirement.
+    // Get the size of the outgoing arguments stack space requirement.
   const unsigned NumBytes = CCInfo.getNextStackOffset();
 
   Chain =
@@ -200,15 +199,13 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
 	uint32_t argNum = TCCH.getNumOfArgs(G->getGlobal()->getName());
   TCCH.init();
   TCCH.setArgPos(originalArgPos);
-  outs()<< "ArgPos: " << TCCH.getArgPos() <<"\n";
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, e = ArgLocs.size(); i != e; ++i) {
     CCValAssign &VA = ArgLocs[i];
-
     if(i<argNum)
     	VA.convertToReg(TCCH.getRegRecordRegister(TCCH.getArgPos()));
     SDValue Arg = OutVals[i];
-    Arg.dump();
+
     // We only handle fully promoted arguments.
     assert(VA.getLocInfo() == CCValAssign::Full && "Unhandled loc info");
 
@@ -339,13 +336,13 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 
 //  DAG.getMachineFunction().getFunction()
 	CCInfo.AnalyzeFormalArguments(Ins, CC_TriCore);
+        
 
 	CCValAssign VA;
 	TCCH.init();
 
-//	outs() << "ArgLoc Size: " << ArgLocs.size() << "\n";
-
 	for (uint32_t i = 0; i < ArgLocs.size(); i++) {
+                
 		VA = ArgLocs[i];
 
 		SDValue ArgIn;
@@ -360,6 +357,7 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 			if (DataReg != UNKNOWN_REG)
 				VA.convertToReg(DataReg);
 		}
+
 		if (VA.isRegLoc()) {
 			// Arguments passed in registers
 			EVT RegVT = VA.getLocVT();
@@ -372,6 +370,7 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 			// If the argument is a pointer type then create a AddrRegsClass
 			// Virtual register.
 			if (TCCH.isRegValPtrType(MF)) {
+				VA.setValVT(MVT(MVT::iPTR));
 				VReg = RegInfo.createVirtualRegister(&TriCore::AddrRegsRegClass);
 				RegInfo.addLiveIn(VA.getLocReg(), VReg); //mark the register is inuse
 				TCCH.saveRegRecord(funName, VA.getLocReg(), true);
@@ -396,7 +395,7 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 		assert(
 				VA.isMemLoc()
 						&& "Can only pass arguments as either registers or via the stack");
-		outs() << "VA.isMemLoc()\n";
+
 		const unsigned Offset = VA.getLocMemOffset();
 
 		// create stack offset it the input argument is placed in memory
@@ -416,10 +415,7 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 	}
 
 	TCCH.setCurPos(0);
-	TCCH.printRegRecord();
-//  for(int i=0; i<3; i++) {
-//  	outs()<<"REg: "<<TCCH.getRegRecordRegister(i)<<"\n";
-//  }
+	//TCCH.printRegRecord();
 
 	return Chain;
 }
@@ -458,8 +454,7 @@ TriCoreTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
 
 
   Type* t= DAG.getMachineFunction().getFunction()->getReturnType();
-  t->dump();
-  t->isPointerTy();
+
   // CCState - Info about the registers and stack slot.
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
