@@ -39,7 +39,9 @@ enum NodeType {
 	CMPB,
 	BR_CC,
 	BR_CC_new,
-	Wrapper
+	Wrapper,
+	SH,
+	SUB
 };
 }
 
@@ -89,8 +91,11 @@ private:
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
 
 
-  //Lower Branch
+  // Lower Branch
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+
+  // Lower Shift Instruction
+  SDValue LowerShifts(SDValue Op, SelectionDAG &DAG) const;
 };
 }
 

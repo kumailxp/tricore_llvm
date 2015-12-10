@@ -18,20 +18,23 @@ include "TriCoreOperators.td"
 def SDT_TriCoreCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
 
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
-						   SDTCisVT<1, OtherVT>,
-						   SDTCisInt<2>,
-							 SDTCisInt<3>]>;
+																									 SDTCisVT<1, OtherVT>,
+																									 SDTCisInt<2>,
+																									 SDTCisInt<3>]>;
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                   SDTCisPtrTy<0>]>;
 
+def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
+                                                  SDTCisInt<2>]>;
+
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
 def TriCorecmpb    : SDNode<"TriCoreISD::CMPB", SDTIntBinOp, [ ]>;
-
-
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
                                                  [SDNPHasChain]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
+def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
+def TriCoresub    : SDNode<"TriCoreISD::SUB", SDTIntBinOp, [ ]>;
 
 
 def jmptarget : Operand<OtherVT> {
@@ -47,7 +50,8 @@ def cc : Operand<i32> {
 
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
-
+def isInteger : Predicate<"isInteger() == true">;
+def isnotInteger : Predicate<"isInteger() == false">;
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
@@ -60,23 +64,24 @@ def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
 	let Constraints = "$s1 = $d";
 }
 
-def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-				  "add $d, $s1, $s2",
-    	       [(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]>;
+let isCommutable = 1 in {
+	def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+						"add $d, $s1, $s2",
+							 [(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]>;
+	
+	def ADDrc : RC<0x8B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const9)
+								 ,"add $d, $s1, $const9",
+								 [(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
+	
+	def ADDIrlc : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const16)
+								 ,"addi $d, $s1, $const16",
+								 [(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16) )]>;
+	
+	def ADDArc : RC<0x8B, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s1, i32imm:$const9)
+								 ,"addi $d, $s1, $const9",
+								 [(set AddrRegs:$d, (add AddrRegs:$s1, immSExt9:$const9) )]>;
 
-def ADDrc : RC<0x8B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const9)
-               ,"add $d, $s1, $const9",
-               [(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
-
-def ADDIrlc : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const16)
-               ,"addi $d, $s1, $const16",
-               [(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16) )]>;
-
-def ADDArc : RC<0x8B, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s1, i32imm:$const9)
-               ,"addi $d, $s1, $const9",
-               [(set AddrRegs:$d, (add AddrRegs:$s1, immSExt9:$const9) )]>;
-
-
+}
 def ADDCrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 				  "addc $d, $s1, $s2",
     	       [(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2) ),
@@ -84,13 +89,6 @@ def ADDCrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 {
 	let Defs = [PSW];
 }
-
-
-
-def SUBrr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
-               (ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
-               [(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
-
 
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
 	        "sub.a %a10, $imm",
@@ -101,6 +99,19 @@ def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
 	let Uses = [A10];
 	
 }
+//let Predicates = [isnotInteger] in 
+def SUBrr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
+               (ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
+               [(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
+
+//let Predicates = [isInteger] in 
+def RSUBrc : RC<0x8B, 0x08, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9)
+                   ,"rsub $d, $s1, $const9",
+                   [(set DataRegs:$d, (sub immSExt9:$const9, DataRegs:$s1)) ]>;
+
+let Constraints="$d = $s1" in
+def RSUBsr : SR<0x32, 0x05, (outs DataRegs: $d), (ins DataRegs:$s1, s4imm:$const4), 
+		"rsub $d", [(set DataRegs:$d, (sub immSExt4:$const4, DataRegs:$s1))]>; 
 
 let Defs=[PSW] in {
   def MULrr : RR2<0x73, 0x00A, (outs DataRegs:$d),
@@ -253,6 +264,18 @@ let Predicates = [isPointer] in
 def STAbol : BOL<0x63,(outs), (ins AddrRegs:$s1_d, memsrc:$off16),
                   "st.a $off16, $s1_d",
                   [(store i32:$s1_d, addr:$off16)]>;
+
+//===----------------------------------------------------------------------===//
+// Shift Instructions
+//===----------------------------------------------------------------------===//
+
+def SHrc : RC<0x8F,0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+    "sh $d, $s1, $const9",
+    [(set DataRegs:$d, (TriCoresh DataRegs:$s1, immSExt9:$const9))]>;	
+
+def SHrr : RR<0x01, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+				"sh $d, $s1, $s2", [(set DataRegs:$d, (TriCoresh DataRegs:$s1, DataRegs:$s2))]>;
+
 
 //===----------------------------------------------------------------------===//
 // Return Instructions

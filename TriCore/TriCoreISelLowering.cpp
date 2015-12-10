@@ -50,9 +50,9 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::CALL:     return "CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
   case TriCoreISD::Wrapper:		return "TriCoreISD::Wrapper";
-  //case TriCoreISD::BR_CC_new:    return "TriCoreISD::BR_CC_new";
-	//case TriCoreISD::CMP:      return "TriCoreISD::CMP";
 	case TriCoreISD::CMPB:      return "TriCoreISD::CMPB";
+	case TriCoreISD::SH:      return "TriCoreISD::SH";
+	case TriCoreISD::SUB:      return "TriCoreISD::SUB";
   }
 }
 
@@ -74,6 +74,8 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
+  setOperationAction(ISD::SHL,           MVT::i32,   Custom);
+  setOperationAction(ISD::SRL,           MVT::i32,   Custom);
 
 }
 
@@ -82,8 +84,53 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
   default:								    llvm_unreachable("Unimplemented operand");
   case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
   case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
+  case ISD::SHL:
+  case ISD::SRL:
+  														return LowerShifts(Op, DAG);
   }
 }
+
+
+SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
+																									SelectionDAG &DAG) const {
+	unsigned Opc = Op.getOpcode();
+	SDNode* N = Op.getNode();
+	SDValue shiftValue =  N->getOperand(1);
+	EVT VT = Op.getValueType();
+	SDLoc dl(N);
+	switch (Opc) {
+	default: llvm_unreachable("Invalid shift opcode!");
+	case ISD::SHL:
+				return DAG.getNode(TriCoreISD::SH, dl,
+						VT, N->getOperand(0), shiftValue);
+	case ISD::SRL:
+		if(isa<ConstantSDNode>(shiftValue)) {
+			int64_t shiftVal = dyn_cast<ConstantSDNode>(shiftValue)->getSExtValue();
+			SDValue negShift = DAG.getTargetConstant(-shiftVal, dl, MVT::i32);
+			return DAG.getNode(TriCoreISD::SH, dl,
+					VT, N->getOperand(0), negShift);
+		}
+		else { // shift value is stored in a register
+
+			// get the number of operands
+			unsigned int opNum = shiftValue.getNumOperands();
+			outs()<<"sv ops: "<< opNum <<"\n";
+
+			//N->getOperand(1).dump();
+			N->getOperand(1).getNode()->dump();
+			SDValue rSubNode;
+			SDNode *subResult = N->getOperand(1).getNode();
+			outs()<<"resno: "<< N->getOperand(1).getResNo() <<"\n";
+			SDVTList VTs = DAG.getVTList(MVT::i32);
+			SDValue Ops[] = { SDValue(subResult, 0),
+												DAG.getTargetConstant(0, dl, MVT::i32) };
+
+			rSubNode = DAG.getNode(TriCoreISD::SUB, dl, VTs, Ops);
+			return DAG.getNode(TriCoreISD::SH, dl, VT, N->getOperand(0), rSubNode);
+		}
+	}
+}
+
 
 
 //static StringRef printCondCode(ISD::CondCode e) {
