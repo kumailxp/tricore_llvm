@@ -14,13 +14,18 @@
 include "TriCoreInstrFormats.td"
 include "TriCoreOperators.td"
 
+def SDT_TriCoreCmp          : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
+																									 SDTCisSameAs<1, 2>]>;
 
-def SDT_TriCoreCmp          : SDTypeProfile<0, 2, [SDTCisSameAs<0, 1>]>;
+def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
 
-def SDT_TriCoreBrCC         : SDTypeProfile<0, 4, [SDTCisVT<0, i32>,
-																									 SDTCisVT<1, OtherVT>,
-																									 SDTCisInt<2>,
-																									 SDTCisInt<3>]>;
+//def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
+//																									 SDTCisInt<1>,
+//																									 SDTCisInt<2>]>;
+
+def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
+                                                  SDTCisVT<1, i32>,
+																									SDTCisVT<2, i32>]>;
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                   SDTCisPtrTy<0>]>;
@@ -28,10 +33,12 @@ def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
                                                   SDTCisInt<2>]>;
 
-def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
-def TriCorecmpb    : SDNode<"TriCoreISD::CMPB", SDTIntBinOp, [ ]>;
+//def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
+//                                                 [SDNPHasChain]>;
+
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
-                                                 [SDNPHasChain]>;
+                            [SDNPHasChain]>;
+
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
 def TriCoresub    : SDNode<"TriCoreISD::SUB", SDTIntBinOp, [ ]>;
@@ -46,17 +53,20 @@ def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
 
-
-
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
 def isInteger : Predicate<"isInteger() == true">;
 def isnotInteger : Predicate<"isInteger() == false">;
+
+// TriCore Condition Codes
+def TriCore_COND_EQ : PatLeaf<(i32 0)>;
+def TriCore_COND_NE : PatLeaf<(i32 1)>;
+def TriCore_COND_GE : PatLeaf<(i32 2)>;
+def TriCore_COND_LT : PatLeaf<(i32 3)>;
+
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
-
-
 def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
                ,"add $d, $const4",
                [(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>
@@ -82,16 +92,9 @@ let isCommutable = 1 in {
 								 [(set AddrRegs:$d, (add AddrRegs:$s1, immSExt9:$const9) )]>;
 
 }
-def ADDCrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-				  "addc $d, $s1, $s2",
-    	       [(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2) ),
-							(implicit PSW)]>
-{
-	let Defs = [PSW];
-}
 
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
-	        "sub.a %a10, $imm",
+	        "sub.a_ %a10, $imm",
                 []> 
 {
   //let Constraints = "$src1 = $d";
@@ -118,9 +121,9 @@ let Defs=[PSW] in {
                   (ins DataRegs:$s2, DataRegs:$s1), "mul $d, $s2, $s1",
 		  [(set DataRegs:$d, (mul DataRegs:$s1, DataRegs:$s2) )]>;
 	
-  def MULri : RC<0x53, 0x001, (outs DataRegs:$d),
+  def MULrc : RC<0x53, 0x001, (outs DataRegs:$d),
                 (ins DataRegs:$s1, s9imm:$const9),  "mul $d, $s1, $const9",
-		[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
+		[(set DataRegs:$d, (mul DataRegs:$s1, immSExt9:$const9) )]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -225,7 +228,7 @@ class MOV<bits<8> opcode, string opstr, dag ins, list<dag>pattern>
 def MOVrlc : MOV<0x3B,"mov", (ins s16imm:$const16) ,
               [(set i32:$d, immSExt16:$const16)]>;
 
-def MOVUrlc : MOV<0x3B,"mov.u", (ins u16imm:$const16) ,
+def MOVUrlc : MOV<0xBB,"mov.u", (ins u16imm:$const16) ,
               [(set i32:$d, immZExt16:$const16)]>;
 
 def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16), 
@@ -240,19 +243,13 @@ def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOV32
   let isPseudo = 1;
 }
 
-//let isReMaterializable = 1, isAsCheapAsAMove = 1 in {
-//	def MOVAi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOVA32 Pseudo",
-//											 [(set i32:$d, (movei32 imm:$const16))]> {
-//		let isPseudo = 1;
-//	}
-//}
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
 let mayLoad = 1 in
 	def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
-										 "ldr $s1_d, $off16",
+										 "ld.w $s1_d, $off16",
 										 [(set DataRegs:$s1_d, (load addr:$off16))]>;
 
 let Predicates = [isnotPointer] in 
@@ -284,7 +281,7 @@ def SHrr : RR<0x01, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 let isTerminator = 1, isReturn = 1, isBarrier = 1 in {
   def RET : T32<(outs), (ins variable_ops),
                     "ret",  [(TriCoreRetFlag)]> {
-    let Inst{27-0}  = 0b0001001011111111111100011110;
+    //let Inst{27-0}  = 0b0001001011111111111100011110;
   }
 }
 
@@ -300,56 +297,87 @@ let isCall = 1, Defs = [A11], Uses = [A10] in {
 //===----------------------------------------------------------------------===//
 // Compare Instructions
 //===----------------------------------------------------------------------===//
-def CMPri  : RC<0x0B, 0x14 ,
-                   (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
-                   "cmp $d, $s1, $const9",
-                   [(set i32:$d, (TriCorecmpb i32:$s1, immSExt9:$const9))]> {
-	
-	
 
-}
+//multiclass COMPARE_32<bits<8> op2, string asmstring, PatLeaf PF> {
+//	
+//	def rc : RC<0x8B, op2{6-0},
+//					 (outs DataRegs:$d),
+//					 (ins DataRegs:$s1, s9imm:$const9),
+//					 !strconcat(asmstring, " $d, $s1, $const9"),
+//					 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, immSExt9:$const9, PF))]>;
+//	
+//	def rr : RR<0x0B, op2,
+//						 (outs DataRegs:$d),
+//						 (ins DataRegs:$s1, DataRegs:$s2),
+//						 !strconcat(asmstring, " $d, $s1, $s2"),
+//						 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, DataRegs:$s2, PF))]>;
+//}
 
-def CMPrr  : RR<0x0, 0x14,
-                   (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-                   "cmp $d, $s1, $s2",
-                   [(set i32:$d, (TriCorecmpb DataRegs:$s1, DataRegs:$s2))]> {
+//defm NE : COMPARE_32<0x11, "ne", TriCore_COND_NE>;
+//defm EQ : COMPARE_32<0x10, "eq", TriCore_COND_EQ>;
+//defm GE : COMPARE_32<0x14, "ge", TriCore_COND_GE>;
+//defm LT : COMPARE_32<0x12, "lt", TriCore_COND_LT>;
 
-	
-}
+
+def CMPrr  : T32<(outs DataRegs:$d), (ins DataRegs:$src, DataRegs:$src2),
+                   "cmp.b\t{$src2, $src, $d}",
+                   [( set DataRegs:$d, (TriCorecmp DataRegs:$src, DataRegs:$src2) )]>;
+
+def CMPri  : T32<(outs DataRegs:$d), (ins DataRegs:$src, i32imm:$src2),
+                   "cmp.b\t{$src2, $src, $d}",
+                   [(set DataRegs:$d, (TriCorecmp DataRegs:$src, imm:$src2))]>;
 
 //===----------------------------------------------------------------------===//
-// Jump Instructions
+// Branch Instructions
 //===----------------------------------------------------------------------===//
-multiclass BRANCH_SIGNED<bits<8> op1_brc, bits<8> op1_brr, 
-												bit op2, string asmstring>
-{
 
-		def brc: BRC<op2, op1_brc, (outs), 
-					(ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, s4imm:$const4),
-					!strconcat(asmstring, " $s1, $const4, $disp15"),
-					[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, immSExt4:$const4)]>;
-			
-		def brr: BRR<op2, op1_brr, (outs), 
-					(ins cc:$cc1, jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2),
-					!strconcat(asmstring, " $s1, $s2, $disp15"),
-					[(TriCorebrcc  imm:$cc1, bb:$disp15, i32:$s1, i32:$s2)]>;
+
+let isBranch = 1, isTerminator = 1 in {
+// Direct branch
+let isBarrier = 1 in {
+  def JMP : T32<   (outs), (ins jmptarget:$dst),
+                   "jmp\t$dst", 
+									 [(br bb:$dst)]>;
 }
 
-let isBranch =1, isTerminator = 1 in {
-	
-	defm JNE : BRANCH_SIGNED<0xdf, 0x5f, 0b1, "jne">;
-	defm JEQ : BRANCH_SIGNED<0xdf, 0x5f, 0b0, "jeq">;
-	defm JGE : BRANCH_SIGNED<0xff, 0x7f, 0b0, "jge">;
-	defm JLT : BRANCH_SIGNED<0xbf, 0x3f, 0b0, "jlt">;
-	
+// Conditional branches
 
-	let isBarrier = 1 in {
-			// Short branch
-			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
-							"j $dst",	[(br bb:$dst)]>;
-	}
+  def JCC : T32<   (outs), (ins jmptarget:$dst, cc:$cc, DataRegs:$s2),
+                   "j$cc\t$dst\t$s2",
+                   [(TriCorebrcc bb:$dst, imm:$cc, DataRegs:$s2)]>;
+} // isBranch, isTerminator
 
-}// isBranch, isTerminator
+
+//multiclass BRANCH_SIGNED<bits<8> op1_brc, bits<8> op1_brr, 
+//												bit op2, string asmstring>
+//{
+//
+//		def brc: BRC<op2, op1_brc, (outs), 
+//					(ins jmptarget:$disp15, DataRegs:$s1, s4imm:$const4),
+//					!strconcat(asmstring, " $s1, $const4, $disp15"),
+//					[(TriCorebrcc  bb:$disp15, i32:$s1, immSExt4:$const4)]>;
+//			
+//		def brr: BRR<op2, op1_brr, (outs), 
+//					(ins jmptarget:$disp15, DataRegs:$s1, DataRegs:$s2),
+//					!strconcat(asmstring, " $s1, $s2, $disp15"),
+//					[(TriCorebrcc  bb:$disp15, i32:$s1, i32:$s2)]>;
+//}
+//
+//let isBranch =1, isTerminator = 1 in {
+//	
+//	defm JNE : BRANCH_SIGNED<0xdf, 0x5f, 0b1, "jne">;
+//	defm JEQ : BRANCH_SIGNED<0xdf, 0x5f, 0b0, "jeq">;
+//	defm JGE : BRANCH_SIGNED<0xff, 0x7f, 0b0, "jge">;
+//	defm JLT : BRANCH_SIGNED<0xbf, 0x3f, 0b0, "jlt">;
+//	
+//
+//	let isBarrier = 1 in {
+//			// Short branch
+//			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
+//							"j $dst",	[(br bb:$dst)]>;
+//	}
+//
+//}// isBranch, isTerminator
 		
 
 //===----------------------------------------------------------------------===//
@@ -365,14 +393,11 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
                                     [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
 
+//===----------------------------------------------------------------------===//
+// Patterns
+//===----------------------------------------------------------------------===//
 
-//def : Pat<(add DataRegs:$s1, -1),
-//          (ADDsrc DataRegs:$s1, -1)>;
 
-
-//def : Pat<(i16 (MSP430Wrapper tglobaladdr:$dst)), (MOV16ri tglobaladdr:$dst)>;
-//def : Pat<(MSP430call (i16 tglobaladdr:$dst)),
-//          (CALLi tglobaladdr:$dst)>;
 def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
           (BL tglobaladdr:$dst)>;
 

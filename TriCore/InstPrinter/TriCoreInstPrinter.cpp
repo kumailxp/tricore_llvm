@@ -29,7 +29,6 @@ using namespace llvm;
 void TriCoreInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << "%" <<StringRef(getRegisterName(RegNo)).lower();
 
-  //outs() <<"printRegName: " <<  StringRef(getRegisterName(RegNo)).lower() << "\n";
 }
 
 void TriCoreInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
@@ -61,7 +60,6 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   	OS << "hi:";
   else if (Kind ==  MCSymbolRefExpr::VK_TRICORE_LO_OFFSET)
   	OS << "lo:";
-  //outs()<< SRE->getSymbol() <<"\n";
   OS << SRE->getSymbol();
   if (Offset) {
     if (Offset > 0) {
@@ -81,75 +79,6 @@ void TriCoreInstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
     Op.getExpr()->print(O, &MAI);
   }
 }
-
-
-
-const char * _condCodeToString(ISD::CondCode CC) {
-  switch (CC) {
-  default:
-  case ISD::SETCC_INVALID:
-  case ISD::SETFALSE:      //    0 0 0 0       Always false (always folded)
-  case ISD::SETFALSE2:     //  1 X 0 0 0       Always false (always folded)
-  case ISD::SETOEQ:        //    0 0 0 1       True if ordered and equal
-  case ISD::SETOGT:        //    0 0 1 0       True if ordered and greater than
-  case ISD::SETOGE:        //    0 0 1 1       True if ordered and greater than or equal
-  case ISD::SETOLT:        //    0 1 0 0       True if ordered and less than
-  case ISD::SETOLE:        //    0 1 0 1       True if ordered and less than or equal
-  case ISD::SETONE:        //    0 1 1 0       True if ordered and operands are unequal
-  case ISD::SETO:          //    0 1 1 1       True if ordered (no nans)
-  case ISD::SETUO:         //    1 0 0 0       True if unordered: isnan(X) | isnan(Y)
-  case ISD::SETUEQ:        //    1 0 0 1       True if unordered or equal
-  case ISD::SETUGT:        //    1 0 1 0       True if unordered or greater than
-  case ISD::SETUGE:        //    1 0 1 1       True if unordered, greater than, or equal
-  case ISD::SETULT:        //    1 1 0 0       True if unordered or less than
-  case ISD::SETULE:        //    1 1 0 1       True if unordered, less than, or equal
-  case ISD::SETUNE:        //    1 1 1 0       True if unordered or not equal
-    llvm_unreachable("Invalid or unsupported condition code");
-    return nullptr;
-
-  case ISD::SETTRUE:       //    1 1 1 1       Always true (always folded)
-  case ISD::SETTRUE2:      //  1 X 1 1 1       Always true (always folded)
-    return "";
-
-  // Don't care operations: undefined if the input is a nan.
-  case ISD::SETEQ:         //  1 X 0 0 1       True if equal
-    return "eq";
-  case ISD::SETGT:         //  1 X 0 1 0       True if greater than
-    return "gt";
-  case ISD::SETGE:         //  1 X 0 1 1       True if greater than or equal
-    return "ge";
-  case ISD::SETLT:         //  1 X 1 0 0       True if less than
-    return "lt";
-  case ISD::SETLE:         //  1 X 1 0 1       True if less than or equal
-    return "le";
-  case ISD::SETNE:         //  1 X 1 1 0       True if not equal
-    return "ne";
-  }
-}
-
-
-//static StringRef _printCondCode(unsigned e) {
-//
-//	switch(e){
-//	default: return "unknown";
-//	case TriCoreCC::COND_E: return "COND_E";
-//	case TriCoreCC::COND_NE: return "COND_NE";
-//	case TriCoreCC::COND_HS: return "COND_HS";
-//	case TriCoreCC::COND_LO: return "COND_LO";
-//	case TriCoreCC::COND_GE: return "COND_GE";
-//	case TriCoreCC::COND_L: return "COND_L";
-//	}
-//}
-//
-void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
-                                       raw_ostream &O) {
-	const MCOperand &Op = MI->getOperand(OpNo);
-	ISD::CondCode CC = (ISD::CondCode)Op.getImm();
-	const char *Str = _condCodeToString(CC);
-	O << Str;
-
-}
-
 
 
 //===----------------------------------------------------------------------===//
@@ -178,43 +107,16 @@ void TriCoreInstPrinter::printZExtImm(const MCInst *MI, int OpNo,
 }
 
 
-// Print a condition code (e.g. for predication).
-void TriCoreInstPrinter::printCondCode(const MCInst *MI, unsigned OpNum,
-                                   raw_ostream &O) {
-  const MCOperand &Op = MI->getOperand(OpNum);
-  ISD::CondCode CC = (ISD::CondCode)Op.getImm();
-  const char *Str = _condCodeToString(CC);
-  O << Str;
-}
-
 // Print a 'memsrc' operand which is a (Register, Offset) pair.
 void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
                                          raw_ostream &O) {
-//  const MCOperand &Op1 = MI->getOperand(OpNum);
-//  const MCOperand &Op2 = MI->getOperand(OpNum + 1);
-//  O << "[";
-//  printRegName(O, Op1.getReg());
-//
-//  unsigned Offset = Op2.getImm();
-//  if (Offset) {
-//    O << ", #" << Offset;
-	//  }
-	//  O << "]";
 
 	const MCOperand &Base = MI->getOperand(OpNum);
 	const MCOperand &Disp = MI->getOperand(OpNum+1);
 
-	if (!Base.getReg())
-		O << '&';
-
-
-
 	// Print register base field
 	if (Base.getReg())
 			O << "[%" << StringRef(getRegisterName(Base.getReg())).lower() << ']';
-//	outs().changeColor(raw_ostream::RED,1);
-//	 Disp.dump();
-//	outs().changeColor(raw_ostream::WHITE,0);
 
 	if (Disp.isExpr())
 		Disp.getExpr()->print(O, &MAI);
@@ -240,4 +142,26 @@ void TriCoreInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
 
   assert(Op.isExpr() && "unknown operand kind in printOperand");
   printExpr(Op.getExpr(), O);
+}
+
+void TriCoreInstPrinter::printCCOperand(const MCInst *MI, unsigned OpNo,
+                                       raw_ostream &O) {
+  unsigned CC = MI->getOperand(OpNo).getImm();
+
+  switch (CC) {
+  default:
+   llvm_unreachable("Unsupported CC code");
+  case 0:
+   O << "eq";
+   break;
+  case 1:
+   O << "ne";
+   break;
+  case 3:
+   O << "lt";
+   break;
+  case 2:
+   O << "ge";
+   break;
+  }
 }

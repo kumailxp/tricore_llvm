@@ -35,10 +35,8 @@ enum NodeType {
   // This loads a 32-bit immediate into a register.
   MOVEi32,
   CALL,
-	CMP,
-	CMPB,
 	BR_CC,
-	BR_CC_new,
+	CMP,
 	Wrapper,
 	SH,
 	SUB

@@ -112,8 +112,7 @@ public:
 
 private:
 	SDNode *SelectMoveImmediate(SDNode *N);
-	SDNode *SelectConditionalBranch(SDNode *N,uint64_t code);
-	SDNode *SelectBRCC(SDNode* N);
+	SDNode *SelectConditionalBranch(SDNode *N);
 
 
 
@@ -340,72 +339,59 @@ static StringRef printCondCode(ISD::CondCode e) {
 }
 
 
-SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N, uint64_t code) {
-
-	//	SDValue Chain = N->getOperand(0);
-	SDValue Cond = N->getOperand(1);
-	SDValue LHS = N->getOperand(3);
-	SDValue RHS = N->getOperand(4);
-	SDValue Target = N->getOperand(2);
-	uint64_t realCond;
-	unsigned opCode;
-	bool isSExt4= false;
-	ConstantSDNode *Ccode= cast<ConstantSDNode>(Cond);
-	uint64_t CVal = Ccode->getZExtValue();
-
-	if (const ConstantSDNode *RHSConst = dyn_cast<ConstantSDNode>(RHS) ){
-		outs() <<"Value of RHS: " << RHSConst->getSExtValue() <<"\n";
-		isSExt4 = (isInt<4>(RHSConst->getSExtValue())) ? true:false;
-		if(isSExt4)
-			RHS = CurDAG->getTargetConstant(RHSConst->getSExtValue(), N, MVT::i32);
-	}
-
-	switch(CVal) {
-
-	case ISD::SETLT:
-		realCond=ISD::SETLT;
-		opCode = (isSExt4==true) ? TriCore::JLTbrc : TriCore::JLTbrr;
-		break;
-	case ISD::SETGE:
-		realCond=ISD::SETGE;
-		opCode = (isSExt4==true) ? TriCore::JGEbrc : TriCore::JGEbrr;
-		break;
-	case ISD::SETGT:
-		std::swap(LHS,RHS);
-		realCond=ISD::SETLT;
-		opCode = TriCore::JLTbrr;
-		break;
-	case ISD::SETLE:
-		std::swap(LHS,RHS);
-		realCond=ISD::SETGE;
-		opCode = TriCore::JGEbrr;
-		break;
-	case ISD::SETEQ:
-		realCond=ISD::SETEQ;
-		opCode = TriCore::JEQbrr;
-		break;
-	case ISD::SETNE:
-		realCond=ISD::SETNE;
-		opCode = TriCore::JNEbrr;
-		break;
-	}
-
-	outs().changeColor(raw_ostream::BLUE,1);
-	Cond.dump();
-	LHS.dump();
-	RHS.dump();
-	outs().changeColor(raw_ostream::WHITE,0);
-
-
-	outs()<<"Generate a branch instruction.\n";
-	//ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(1))->get();
-	//	outs().changeColor(raw_ostream::GREEN,1)<<printCondCode(CC) <<"\n";
-	outs().changeColor(raw_ostream::WHITE,0);
-	SDValue CCVal = CurDAG->getTargetConstant(realCond, N, MVT::i32);
-	//	CCVal.dump();
-	SDValue BranchOps[] = {CCVal,  Target, LHS, RHS };
-	return CurDAG->getMachineNode(opCode, N, MVT::Other, BranchOps);
-}
+//SDNode *TriCoreDAGToDAGISel::SelectConditionalBranch(SDNode *N) {
+//
+//	//	SDValue Chain = N->getOperand(0);
+//	SDValue Cond = N->getOperand(1);
+//	SDValue Target = N->getOperand(2);
+//	SDValue LHS = N->getOperand(3);
+//	SDValue RHS = N->getOperand(4);
+//
+//	uint64_t realCond;
+//	unsigned opCode;
+//	bool isSExt4= false;
+//	ConstantSDNode *Ccode= cast<ConstantSDNode>(Cond);
+//	uint64_t CVal = Ccode->getZExtValue();
+//
+//	if (const ConstantSDNode *RHSConst = dyn_cast<ConstantSDNode>(RHS) ){
+//		isSExt4 = (isInt<4>(RHSConst->getSExtValue())) ? true:false;
+//		if(isSExt4)
+//			RHS = CurDAG->getTargetConstant(RHSConst->getSExtValue(), N, MVT::i32);
+//	}
+//
+//	switch(CVal) {
+//
+//	case ISD::SETLT:
+//		realCond=ISD::SETLT;
+//		opCode = (isSExt4==true) ? TriCore::JLTbrc : TriCore::JLTbrr;
+//		break;
+//	case ISD::SETGE:
+//		realCond=ISD::SETGE;
+//		opCode = (isSExt4==true) ? TriCore::JGEbrc : TriCore::JGEbrr;
+//		break;
+//	case ISD::SETGT:
+//		std::swap(LHS,RHS);
+//		realCond=ISD::SETLT;
+//		opCode = TriCore::JLTbrr;
+//		break;
+//	case ISD::SETLE:
+//		std::swap(LHS,RHS);
+//		realCond=ISD::SETGE;
+//		opCode = TriCore::JGEbrr;
+//		break;
+//	case ISD::SETEQ:
+//		realCond=ISD::SETEQ;
+//		opCode = TriCore::JEQbrr;
+//		break;
+//	case ISD::SETNE:
+//		realCond=ISD::SETNE;
+//		opCode = TriCore::JNEbrr;
+//		break;
+//	}
+//
+//	SDValue BranchOps[] = {Target, LHS, RHS};
+//	return CurDAG->getMachineNode(opCode, N, MVT::Other, BranchOps);
+//}
 
 
 SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
@@ -441,21 +427,15 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	}
 	case ISD::STORE: {
 		ptyType = false;
-		SDValue _cfreg = N->getOperand(1);
-		SDNode *_cfNode = cast<SDNode>(_cfreg);
 		ptyType = (N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR) ?
 				true : false;
 		break;
 	}
-	case TriCoreISD::BR_CC:
-		//SDValue op1 = N->getOperand(0);
-		SDValue op2 = N->getOperand(1);
-		ConstantSDNode *op4 = cast<ConstantSDNode>(op2);
-		//CondCodeSDNode *op9 = cast<CondCodeSDNode>(op2);
-		outs().changeColor(raw_ostream::BLUE,1) <<"This is a BR_CC\n";
-		outs().changeColor(raw_ostream::WHITE,0);
-		return SelectConditionalBranch(N, op4->getZExtValue());
-		break;
+//	case TriCoreISD::BR_CC:
+//		outs().changeColor(raw_ostream::BLUE,1) <<"This is a BR_CC\n";
+//		outs().changeColor(raw_ostream::WHITE,0);
+//		return SelectConditionalBranch(N);
+//		break;
 	}
 
 	SDNode *ResNode = SelectCode(N);

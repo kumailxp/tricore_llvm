@@ -97,21 +97,6 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
   }
 }
 
-//////////////////////////////////////////////////////////
-
-//- Must have, hasFP() is pure virtual of parent
-// hasFP - Return true if the specified function should have a dedicated frame
-// pointer register.  This is true if the function has variable sized allocas or
-// if frame pointer elimination is disabled.
-//bool TriCoreFrameLowering::hasFP(const MachineFunction &MF) const {
-//  const MachineFrameInfo *MFI = MF.getFrameInfo();
-//  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-//      MFI->hasVarSizedObjects() || MFI->isFrameAddressTaken();
-//}
-/////////////////////////////////////////////////////////
-
-
-
 void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
                                        MachineBasicBlock &MBB) const {
   assert(&MF.front() == &MBB && "Shrink-wrapping not yet supported");
@@ -169,7 +154,9 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
     // mergeSPUpdatesDown(MBB, MBBI, &NumBytes);
 
     if (NumBytes) {
+    	outs()<<"w1\n";
        BuildMI(MBB, MBBI, DL, TII.get(TriCore::SUBAsc)).addImm(NumBytes);
+       outs()<<"w2\n";
 
     }
   }

@@ -22,6 +22,16 @@
 
 namespace llvm {
 
+namespace TriCoreCC {
+	enum CondCodes {
+		COND_EQ, // Equal
+		COND_NE, // Not equal
+		COND_GE, // Greater than or equal
+		COND_LT, // Less than
+		COND_INVALID
+	};
+}
+
 class TriCoreInstrInfo : public TriCoreGenInstrInfo {
   const TriCoreRegisterInfo RI;
   virtual void anchor();
@@ -40,29 +50,17 @@ public:
   /// the destination along with the FrameIndex of the loaded stack slot.  If
   /// not, return 0.  This predicate must return 0 if the instruction has
   /// any side effects other than loading from the stack slot.
-//  virtual unsigned isLoadFromStackSlot(const MachineInstr *MI,
-//                                       int &FrameIndex) const override;
+  virtual unsigned isLoadFromStackSlot(const MachineInstr *MI,
+                                       int &FrameIndex) const override;
 //
 //  /// isStoreToStackSlot - If the specified machine instruction is a direct
 //  /// store to a stack slot, return the virtual or physical register number of
 //  /// the source reg along with the FrameIndex of the loaded stack slot.  If
 //  /// not, return 0.  This predicate must return 0 if the instruction has
 //  /// any side effects other than storing to the stack slot.
-//  virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
-//                                      int &FrameIndex) const override;
+  virtual unsigned isStoreToStackSlot(const MachineInstr *MI,
+                                      int &FrameIndex) const override;
 
-//  virtual bool AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
-//                             MachineBasicBlock *&FBB,
-//                             SmallVectorImpl<MachineOperand> &Cond,
-//                             bool AllowModify) const override;
-//
-//  virtual unsigned RemoveBranch(MachineBasicBlock &MBB) const override;
-//
-//
-//  virtual unsigned InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
-//                                MachineBasicBlock *FBB,
-//                                ArrayRef<MachineOperand> Cond,
-//                                DebugLoc DL) const override;
 
   virtual void copyPhysReg(MachineBasicBlock &MBB,
                            MachineBasicBlock::iterator I, DebugLoc DL,
@@ -86,6 +84,9 @@ public:
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const
      override;
 
+//  TriCoreCC::CondCodes getCondFromBranchOpc(unsigned Opc) const;
+//  TriCoreCC::CondCodes getOppositeCondition(TriCoreCC::CondCodes CC) const;
+//  const MCInstrDesc& getBrCond(TriCoreCC::CondCodes CC) const;
 //  bool AnalyzeBranch(MachineBasicBlock &MBB,
 //                       MachineBasicBlock *&TBB, MachineBasicBlock *&FBB,
 //                       SmallVectorImpl<MachineOperand> &Cond,

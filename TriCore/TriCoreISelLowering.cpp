@@ -44,14 +44,14 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   switch (Opcode) {
   default:
     return NULL;
-  case TriCoreISD::RET_FLAG: return "RetFlag";
-  case TriCoreISD::LOAD_SYM: return "LOAD_SYM";
-  case TriCoreISD::MOVEi32:  return "MOVEi32";
-  case TriCoreISD::CALL:     return "CALL";
+  case TriCoreISD::RET_FLAG: return "TriCoreISD::RetFlag";
+  case TriCoreISD::LOAD_SYM: return "TriCoreISD::LOAD_SYM";
+  case TriCoreISD::MOVEi32:  return "TriCoreISD::MOVEi32";
+  case TriCoreISD::CALL:     return "TriCoreISD::CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
-  case TriCoreISD::Wrapper:		return "TriCoreISD::Wrapper";
-	case TriCoreISD::CMPB:      return "TriCoreISD::CMPB";
-	case TriCoreISD::SH:      return "TriCoreISD::SH";
+  case TriCoreISD::CMP:      return "TriCoreISD::CMP";
+  case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
+  case TriCoreISD::SH:       return "TriCoreISD::SH";
 	case TriCoreISD::SUB:      return "TriCoreISD::SUB";
   }
 }
@@ -85,8 +85,7 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
   case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
   case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
   case ISD::SHL:
-  case ISD::SRL:
-  														return LowerShifts(Op, DAG);
+  case ISD::SRL:              return LowerShifts(Op, DAG);
   }
 }
 
@@ -114,13 +113,10 @@ SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
 
 			// get the number of operands
 			unsigned int opNum = shiftValue.getNumOperands();
-			outs()<<"sv ops: "<< opNum <<"\n";
-
 			//N->getOperand(1).dump();
 			N->getOperand(1).getNode()->dump();
 			SDValue rSubNode;
 			SDNode *subResult = N->getOperand(1).getNode();
-			outs()<<"resno: "<< N->getOperand(1).getResNo() <<"\n";
 			SDVTList VTs = DAG.getVTList(MVT::i32);
 			SDValue Ops[] = { SDValue(subResult, 0),
 												DAG.getTargetConstant(0, dl, MVT::i32) };
@@ -131,53 +127,204 @@ SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
 	}
 }
 
+static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
+                       ISD::CondCode CC,
+                       SDLoc dl, SelectionDAG &DAG) {
+  // FIXME: Handle bittests someday
+  assert(!LHS.getValueType().isFloatingPoint() && "We don't handle FP yet");
 
+  // FIXME: Handle jump negative someday
+  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
+  switch (CC) {
+  default: llvm_unreachable("Invalid integer condition!");
+  case ISD::SETEQ:
+    TCC = TriCoreCC::COND_EQ;     // aka COND_Z
+    // Minor optimization: if LHS is a constant, swap operands, then the
+    // constant can be folded into comparison.
+    if (LHS.getOpcode() == ISD::Constant)
+      std::swap(LHS, RHS);
+    break;
+  case ISD::SETNE:
+    TCC = TriCoreCC::COND_NE;    // aka COND_NZ
+    // Minor optimization: if LHS is a constant, swap operands, then the
+    // constant can be folded into comparison.
+    if (LHS.getOpcode() == ISD::Constant)
+      std::swap(LHS, RHS);
+    break;
+  case ISD::SETULE:
+    std::swap(LHS, RHS);        // FALLTHROUGH
+  case ISD::SETUGE:
+    // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+      TCC = TriCoreCC::COND_LT;
+      break;
+    }
+    TCC = TriCoreCC::COND_GE;    // aka COND_C
+    break;
+  case ISD::SETUGT:
+    std::swap(LHS, RHS);        // FALLTHROUGH
+  case ISD::SETULT:
+    // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+      TCC = TriCoreCC::COND_GE;
+      break;
+    }
+    TCC = TriCoreCC::COND_LT;    // aka COND_NC
+    break;
+  case ISD::SETLE:
+    std::swap(LHS, RHS);        // FALLTHROUGH
+  case ISD::SETGE:
+    // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+      TCC = TriCoreCC::COND_LT;
+      break;
+    }
+    TCC = TriCoreCC::COND_GE;
+    break;
+  case ISD::SETGT:
+    std::swap(LHS, RHS);        // FALLTHROUGH
+  case ISD::SETLT:
+    // Turn lhs < rhs with lhs constant into rhs >= lhs+1, this allows us to
+    // fold constant into instruction.
+    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+      LHS = RHS;
+      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+      TCC = TriCoreCC::COND_GE;
+      break;
+    }
+    TCC = TriCoreCC::COND_LT;
+    break;
+  }
 
-//static StringRef printCondCode(ISD::CondCode e) {
-//
-//	switch(e){
-//	default: return "unknown";
-//	case ISD::SETEQ: return "SETEQ";
-//	case ISD::SETGT: return "SETGT";
-//	case ISD::SETGE: return "SETGE";
-//	case ISD::SETLT: return "SETLT";
-//	case ISD::SETLE: return "SETLE";
-//	case ISD::SETNE: return "SETNE";
-//	case ISD::SETTRUE2: return "SETTRUE2";
-//	}
-//}
-//
-//static SDValue EmitCMP(SDValue &Chain, SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
+  TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
+  return DAG.getNode(TriCoreISD::CMP, dl, MVT::Glue, LHS, RHS);
+}
+
+//static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, SDValue &TargetCC,
 //                       ISD::CondCode CC,
 //                       SDLoc dl, SelectionDAG &DAG) {
 //
-//  TargetCC = DAG.getConstant(CC, dl, MVT::i32);
+//	SDValue tricoreCC;
+//  TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
+//  outs()<<"CC: " << CC <<"\n";
+//  switch (CC) {
+//  default: llvm_unreachable("Invalid integer condition!");
+//  case ISD::SETEQ:
+//    TCC = TriCoreCC::COND_EQ;     // aka COND_Z
+//    tricoreCC = DAG.getConstant(TriCoreCC::COND_EQ, dl, MVT::i32);
+//    // Minor optimization: if LHS is a constant, swap operands, then the
+//    // constant can be folded into comparison.
+//    if (LHS.getOpcode() == ISD::Constant)
+//      std::swap(LHS, RHS);
+//    break;
+//  case ISD::SETNE:
+//    TCC = TriCoreCC::COND_NE;    // aka COND_NZ
+//    tricoreCC = DAG.getConstant(TriCoreCC::COND_NE, dl, MVT::i32);
+//    // Minor optimization: if LHS is a constant, swap operands, then the
+//    // constant can be folded into comparison.
+//    if (LHS.getOpcode() == ISD::Constant)
+//      std::swap(LHS, RHS);
+//    break;
+////  case ISD::SETULE:
+////    std::swap(LHS, RHS);        // FALLTHROUGH
+////  case ISD::SETUGE:
+////    // Turn lhs u>= rhs with lhs constant into rhs u< lhs+1, this allows us to
+////    // fold constant into instruction.
+////    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+////      LHS = RHS;
+////      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+////      TCC = TriCoreCC::COND_LT;
+////      break;
+////    }
+////    TCC = TriCoreCC::COND_GE;    // aka COND_C
+////    break;
+////  case ISD::SETUGT:
+////    std::swap(LHS, RHS);        // FALLTHROUGH
+////  case ISD::SETULT:
+////    // Turn lhs u< rhs with lhs constant into rhs u>= lhs+1, this allows us to
+////    // fold constant into instruction.
+////    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+////      LHS = RHS;
+////      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+////      TCC = TriCoreCC::COND_GE;
+////      break;
+////    }
+////    TCC = TriCoreCC::COND_LT;    // aka COND_NC
+////    break;
+////  case ISD::SETLE:
+////    std::swap(LHS, RHS);        // FALLTHROUGH
+////  case ISD::SETGE:
+////    // Turn lhs >= rhs with lhs constant into rhs < lhs+1, this allows us to
+////    // fold constant into instruction.
+////    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+////      LHS = RHS;
+////      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+////      TCC = TriCoreCC::COND_LT;
+////      break;
+////    }
+////    TCC = TriCoreCC::COND_GE;
+////    break;
+////  case ISD::SETGT:
+////    std::swap(LHS, RHS);        // FALLTHROUGH
+////  case ISD::SETLT:
+////    // Turn lhs < rhs with lhs constant into rhs >= lhs+1, this allows us to
+////    // fold constant into instruction.
+////    if (const ConstantSDNode * C = dyn_cast<ConstantSDNode>(LHS)) {
+////      LHS = RHS;
+////      RHS = DAG.getConstant(C->getSExtValue() + 1, dl, C->getValueType(0));
+////      TCC = TriCoreCC::COND_GE;
+////      break;
+////    }
+////    TCC = TriCoreCC::COND_LT;
+////    break;
+//  }
+//
+//  TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
+//  return DAG.getNode(TriCoreISD::CMP, dl, MVT::Glue, LHS, RHS);
 //}
 
+
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
-	SDValue Chain = Op.getOperand(0);
-	ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
-	SDValue LHS = Op.getOperand(2);
-	SDValue RHS = Op.getOperand(3);
-	SDValue Dest = Op.getOperand(4);
-	SDLoc dl(Op);
+  SDValue Chain = Op.getOperand(0);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+  SDValue LHS   = Op.getOperand(2);
+  SDValue RHS   = Op.getOperand(3);
+  SDValue Dest  = Op.getOperand(4);
+  SDLoc dl  (Op);
 
-	SDValue TargetCC = DAG.getConstant(CC, dl, MVT::i32);
-	//Op.getOperand(1).dump();
+  SDValue TargetCC;
+  SDValue Flag = EmitCMP(LHS, RHS, TargetCC, CC, dl, DAG);
 
-	//SDValue Flag = EmitCMP(Chain, LHS, RHS, TargetCC, CC, dl, DAG);
-	//SDValue Zero = DAG.getConstant(0, dl, MVT::i32);
-
-	outs() << "TriCoreTargetLowering::LowerBR_CC\n";
-
-	SDValue CompareOps[] = { Chain, TargetCC, Dest, LHS, RHS };
-	EVT CompareTys[] = { MVT::Other };
-	SDVTList CompareVT = DAG.getVTList(CompareTys);
-
-	return DAG.getNode(TriCoreISD::BR_CC, dl, CompareVT, CompareOps);
-//  return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
-//                     Chain, Dest, TargetCC, Flag);
+	outs() <<"Num of Operands: " <<  Flag.getNumOperands() << "\n";
+  outs() <<"Result Node: " << Flag.getResNo() << "\n";
+  return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
+                     Chain, Dest, TargetCC, Flag);
 }
+
+//SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
+//	SDValue Chain = Op.getOperand(0);
+//	ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+//	SDValue LHS = Op.getOperand(2);
+//	SDValue RHS = Op.getOperand(3);
+//	SDValue Dest = Op.getOperand(4);
+//	SDLoc dl(Op);
+//
+//	SDValue TargetCC = DAG.getConstant(CC, dl, MVT::i32);
+//	SDValue CompareOps[] = { Chain, TargetCC, Dest, LHS, RHS };
+//	EVT CompareTys[] = { MVT::Other };
+//	SDVTList CompareVT = DAG.getVTList(CompareTys);
+//
+//	return DAG.getNode(TriCoreISD::BR_CC, dl, CompareVT, CompareOps);
+//}
 
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const
 {
