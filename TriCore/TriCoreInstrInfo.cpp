@@ -464,7 +464,6 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		} else {
 			//outs()<<"MO.getGlobal()\n";
 			const GlobalValue *GV = MO.getGlobal();
-			const unsigned TF = MO.getTargetFlags();
 			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
 			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
 		}

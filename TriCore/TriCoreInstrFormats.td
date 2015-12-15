@@ -101,15 +101,31 @@ class SC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
 }
 
 //===----------------------------------------------------------------------===//
-// 16-bit SB Instruction Format: <op2|s1/d|op1>
+// 16-bit SB Instruction Format: <disp8|op1>
 //===----------------------------------------------------------------------===//
-class SB<bits<8> op1, bits<4> op2, dag outs, dag ins, 
+class SB<bits<8> op1, dag outs, dag ins, 
          string asmstr, list<dag> pattern>
         : T16<op1, outs, ins, asmstr, pattern> {
 
-  bits<4> s1_d;
-  let Inst{11-8} = s1_d;
-  let Inst{15-12} = op2;
+  bits<8> disp8;
+  let Inst{15-8} = disp8;
+  let Inst{7-0} = op1;
+}
+
+
+//===----------------------------------------------------------------------===//
+// 16-bit SBR Instruction Format: <s2|disp4|op1>
+//===----------------------------------------------------------------------===//
+class SBR<bits<8> op1, dag outs, dag ins, 
+         string asmstr, list<dag> pattern>
+        : T16<op1, outs, ins, asmstr, pattern> {
+
+  bits<4> s2;
+  bits<4> disp4;
+  
+  let Inst{15-12} = s2;
+  let Inst{11-8} = disp4;
+  let Inst{7-0} = op1;
 }
 
 //===----------------------------------------------------------------------===//

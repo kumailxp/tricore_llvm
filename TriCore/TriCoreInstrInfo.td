@@ -14,27 +14,26 @@
 include "TriCoreInstrFormats.td"
 include "TriCoreOperators.td"
 
-def SDT_TriCoreCmp          : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
-																									 SDTCisSameAs<1, 2>]>;
+def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+																									 SDTCisSameAs<1, 2>,
+																									 SDTCisInt<3>]>;
 
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
 
 //def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
-//																									 SDTCisInt<1>,
-//																									 SDTCisInt<2>]>;
+//                                                  SDTCisVT<1, i32>,
+//																									SDTCisVT<2, i32>]>;
 
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
                                                   SDTCisVT<1, i32>,
-																									SDTCisVT<2, i32>]>;
+																									SDTCisInt<2>]>;
+
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                   SDTCisPtrTy<0>]>;
 
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
                                                   SDTCisInt<2>]>;
-
-//def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
-//                                                 [SDNPHasChain]>;
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
                             [SDNPHasChain]>;
@@ -94,7 +93,7 @@ let isCommutable = 1 in {
 }
 
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
-	        "sub.a_ %a10, $imm",
+	        "sub.a %a10, $imm",
                 []> 
 {
   //let Constraints = "$src1 = $d";
@@ -103,7 +102,7 @@ def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
 	
 }
 //let Predicates = [isnotInteger] in 
-def SUBrr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
+def SUBArr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
                (ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
                [(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
 
@@ -239,9 +238,7 @@ def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16),
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1 in
 def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOV32 Pseudo",
-                     [(set i32:$d, (movei32 imm:$const16))]> {
-  let isPseudo = 1;
-}
+                     [(set i32:$d, (movei32 imm:$const16))]>;
 
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
@@ -298,53 +295,60 @@ let isCall = 1, Defs = [A11], Uses = [A10] in {
 // Compare Instructions
 //===----------------------------------------------------------------------===//
 
-//multiclass COMPARE_32<bits<8> op2, string asmstring, PatLeaf PF> {
-//	
-//	def rc : RC<0x8B, op2{6-0},
-//					 (outs DataRegs:$d),
-//					 (ins DataRegs:$s1, s9imm:$const9),
-//					 !strconcat(asmstring, " $d, $s1, $const9"),
-//					 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, immSExt9:$const9, PF))]>;
-//	
-//	def rr : RR<0x0B, op2,
-//						 (outs DataRegs:$d),
-//						 (ins DataRegs:$s1, DataRegs:$s2),
-//						 !strconcat(asmstring, " $d, $s1, $s2"),
-//						 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, DataRegs:$s2, PF))]>;
-//}
+multiclass COMPARE_32<bits<8> op2, string asmstring, PatLeaf PF> {
+	
+	def rc : RC<0x8B, op2{6-0},
+					 (outs DataRegs:$d),
+					 (ins DataRegs:$s1, s9imm:$const9),
+					 !strconcat(asmstring, " $d, $s1, $const9"),
+					 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, immSExt9:$const9, PF))]>;
+	
+	def rr : RR<0x0B, op2,
+						 (outs DataRegs:$d),
+						 (ins DataRegs:$s1, DataRegs:$s2),
+						 !strconcat(asmstring, " $d, $s1, $s2"),
+						 [( set DataRegs:$d, (TriCorecmp DataRegs:$s1, DataRegs:$s2, PF))]>;
+}
 
-//defm NE : COMPARE_32<0x11, "ne", TriCore_COND_NE>;
-//defm EQ : COMPARE_32<0x10, "eq", TriCore_COND_EQ>;
-//defm GE : COMPARE_32<0x14, "ge", TriCore_COND_GE>;
-//defm LT : COMPARE_32<0x12, "lt", TriCore_COND_LT>;
-
-
-def CMPrr  : T32<(outs DataRegs:$d), (ins DataRegs:$src, DataRegs:$src2),
-                   "cmp.b\t{$src2, $src, $d}",
-                   [( set DataRegs:$d, (TriCorecmp DataRegs:$src, DataRegs:$src2) )]>;
-
-def CMPri  : T32<(outs DataRegs:$d), (ins DataRegs:$src, i32imm:$src2),
-                   "cmp.b\t{$src2, $src, $d}",
-                   [(set DataRegs:$d, (TriCorecmp DataRegs:$src, imm:$src2))]>;
+defm NE : COMPARE_32<0x11, "ne", TriCore_COND_NE>;
+defm EQ : COMPARE_32<0x10, "eq", TriCore_COND_EQ>;
+defm GE : COMPARE_32<0x14, "ge", TriCore_COND_GE>;
+defm LT : COMPARE_32<0x12, "lt", TriCore_COND_LT>;
 
 //===----------------------------------------------------------------------===//
 // Branch Instructions
 //===----------------------------------------------------------------------===//
 
+multiclass JUMP_16<bits<8> op1_sb, bits<8> op1_sbr, 
+									string asmstring, PatLeaf PF>
+{
+
+//		let Uses = [D15] in
+//		def sb: SB<op1_sb, (outs), 
+//					(ins jmptarget:$disp4),
+//					!strconcat(asmstring, " %d15, $disp4"),
+//					[(TriCorebrcc  bb:$disp4)]>;
+			
+		def sbr: SBR<op1_sbr, (outs), 
+					(ins jmptarget:$disp4, DataRegs:$s1),
+					!strconcat(asmstring, " $s1, $disp4"),
+					[(TriCorebrcc  bb:$disp4, DataRegs:$s1, PF)]>;
+}
+
 
 let isBranch = 1, isTerminator = 1 in {
 // Direct branch
 let isBarrier = 1 in {
-  def JMP : T32<   (outs), (ins jmptarget:$dst),
-                   "jmp\t$dst", 
-									 [(br bb:$dst)]>;
+  def Jb : B<0x1D, (outs), (ins jmptarget:$dst),
+                "j $dst", 
+								[(br bb:$dst)]>;
 }
 
 // Conditional branches
 
-  def JCC : T32<   (outs), (ins jmptarget:$dst, cc:$cc, DataRegs:$s2),
-                   "j$cc\t$dst\t$s2",
-                   [(TriCorebrcc bb:$dst, imm:$cc, DataRegs:$s2)]>;
+	defm JNZ : JUMP_16<0xEE, 0xF6, "jnz", TriCore_COND_NE>;
+	defm JZ : JUMP_16<0x6E, 0x76, "jz", TriCore_COND_EQ>;
+
 } // isBranch, isTerminator
 
 
@@ -370,13 +374,6 @@ let isBarrier = 1 in {
 //	defm JGE : BRANCH_SIGNED<0xff, 0x7f, 0b0, "jge">;
 //	defm JLT : BRANCH_SIGNED<0xbf, 0x3f, 0b0, "jlt">;
 //	
-//
-//	let isBarrier = 1 in {
-//			// Short branch
-//			def JMP : B<0x1D, (outs), (ins jmptarget:$dst),
-//							"j $dst",	[(br bb:$dst)]>;
-//	}
-//
 //}// isBranch, isTerminator
 		
 
