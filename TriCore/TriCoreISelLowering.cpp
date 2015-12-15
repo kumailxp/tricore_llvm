@@ -49,6 +49,7 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::MOVEi32:  return "TriCoreISD::MOVEi32";
   case TriCoreISD::CALL:     return "TriCoreISD::CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
+  case TriCoreISD::SELECT_CC:return "TriCoreISD::SELECT_CC";
   case TriCoreISD::CMP:      return "TriCoreISD::CMP";
   case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
   case TriCoreISD::SH:       return "TriCoreISD::SH";
@@ -74,6 +75,8 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
+  setOperationAction(ISD::SELECT_CC,     MVT::i32,   Custom);
+  setOperationAction(ISD::SETCC,         MVT::i32,   Custom);
   setOperationAction(ISD::SHL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRA,           MVT::i32,   Custom);
@@ -85,6 +88,8 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
   default:								    llvm_unreachable("Unimplemented operand");
   case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
   case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
+  case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
+  case ISD::SETCC:            return LowerSETCC(Op, DAG);
   case ISD::SHL:
   case ISD::SRL:
   case ISD::SRA:							return LowerShifts(Op, DAG);
@@ -230,6 +235,43 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
 
 }
 
+SDValue TriCoreTargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue LHS   = Op.getOperand(0);
+  SDValue RHS   = Op.getOperand(1);
+  SDLoc dl  (Op);
+
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
+  SDValue TargetCC;
+  SDValue Flag = EmitCMP(LHS, RHS, CC, dl, DAG, TargetCC);
+  EVT VT = Op.getValueType();
+  SDValue One  = DAG.getConstant(1, dl, VT);
+  SDValue Zero = DAG.getConstant(0, dl, VT);
+  SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
+  SDValue Ops[] = {LHS, RHS, TargetCC, Flag};
+
+  return DAG.getNode(TriCoreISD::SELECT_CC, dl, VTs, Ops);
+
+}
+
+
+SDValue TriCoreTargetLowering::LowerSELECT_CC(SDValue Op,
+                                             SelectionDAG &DAG) const {
+  SDValue LHS    = Op.getOperand(0);
+  SDValue RHS    = Op.getOperand(1);
+  SDValue TrueV  = Op.getOperand(2);
+  SDValue FalseV = Op.getOperand(3);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(4))->get();
+  SDLoc dl   (Op);
+
+  SDValue tricoreCC;
+  SDValue Flag = EmitCMP(LHS, RHS, CC, dl, DAG, tricoreCC);
+
+  SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
+  SDValue Ops[] = {TrueV, FalseV, tricoreCC, Flag};
+
+  return DAG.getNode(TriCoreISD::SELECT_CC, dl, VTs, Ops);
+}
+
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const
 {
 
@@ -239,6 +281,72 @@ SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG)
   SDValue TargetAddr =
       DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
   return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
+}
+
+
+MachineBasicBlock*
+TriCoreTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
+                                                  MachineBasicBlock *BB) const {
+  unsigned Opc = MI->getOpcode();
+
+  const TargetInstrInfo &TII = *BB->getParent()->getSubtarget().getInstrInfo();
+  DebugLoc dl = MI->getDebugLoc();
+
+  assert(Opc == TriCore::Select8 && "Unexpected instr type to insert");
+  // To "insert" a SELECT instruction, we actually have to insert the diamond
+  // control-flow pattern.  The incoming instruction knows the destination vreg
+  // to set, the condition code register to branch on, the true/false values to
+  // select between, and a branch opcode to use.
+  const BasicBlock *LLVM_BB = BB->getBasicBlock();
+  MachineFunction::iterator I = BB;
+  ++I;
+
+  //  thisMBB:
+  //  ...
+  //   TrueVal = ...
+  //   cmpTY ccX, r1, r2
+  //   jCC copy1MBB
+  //   fallthrough --> copy0MBB
+  MachineBasicBlock *thisMBB = BB;
+  MachineFunction *F = BB->getParent();
+  MachineBasicBlock *copy0MBB = F->CreateMachineBasicBlock(LLVM_BB);
+  MachineBasicBlock *copy1MBB = F->CreateMachineBasicBlock(LLVM_BB);
+  F->insert(I, copy0MBB);
+  F->insert(I, copy1MBB);
+  // Update machine-CFG edges by transferring all successors of the current
+  // block to the new block which will contain the Phi node for the select.
+  copy1MBB->splice(copy1MBB->begin(), BB,
+                   std::next(MachineBasicBlock::iterator(MI)), BB->end());
+  copy1MBB->transferSuccessorsAndUpdatePHIs(BB);
+  // Next, add the true and fallthrough blocks as its successors.
+  BB->addSuccessor(copy0MBB);
+  BB->addSuccessor(copy1MBB);
+
+  MI->dump();
+
+  BuildMI(BB, dl, TII.get(TriCore::JNZsbr))
+    .addMBB(copy1MBB)
+  	.addReg(MI->getOperand(4).getReg());
+
+  //  copy0MBB:
+  //   %FalseValue = ...
+  //   # fallthrough to copy1MBB
+  BB = copy0MBB;
+
+  // Update machine-CFG edges
+  BB->addSuccessor(copy1MBB);
+
+  //  copy1MBB:
+  //   %Result = phi [ %FalseValue, copy0MBB ], [ %TrueValue, thisMBB ]
+  //  ...
+  BB = copy1MBB;
+  BuildMI(*BB, BB->begin(), dl, TII.get(TriCore::PHI),
+          MI->getOperand(0).getReg())
+    .addReg(MI->getOperand(2).getReg()).addMBB(copy0MBB)
+    .addReg(MI->getOperand(1).getReg()).addMBB(thisMBB);
+
+  MI->eraseFromParent();   // The pseudo instruction is gone now.
+  return BB;
 }
 
 //===----------------------------------------------------------------------===//

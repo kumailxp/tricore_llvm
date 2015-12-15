@@ -39,7 +39,8 @@ enum NodeType {
 	CMP,
 	Wrapper,
 	SH,
-	SUB
+	SUB,
+	SELECT_CC
 };
 }
 
@@ -88,9 +89,16 @@ private:
   // LowerGlobalAddress - Emit a constant load to the global address.
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
 
+  MachineBasicBlock* EmitInstrWithCustomInserter(MachineInstr *MI,
+                                                  MachineBasicBlock *BB) const;
 
   // Lower Branch
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
+
+  // Lower SELECT_CC
+  SDValue LowerSELECT_CC(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
 
   // Lower Shift Instruction
   SDValue LowerShifts(SDValue Op, SelectionDAG &DAG) const;

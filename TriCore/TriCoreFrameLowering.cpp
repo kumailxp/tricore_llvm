@@ -66,10 +66,6 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   const uint64_t MaxSubImm = 0xfff;
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
-
-//  if (TFI->hasFP(MF))
-//  	outs()<<"Frame Taken!!\n";
 
   if (Offset <= MaxSubImm) {
     // The stack offset fits in the ADD/SUB instruction.

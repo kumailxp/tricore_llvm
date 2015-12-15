@@ -18,15 +18,14 @@ def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
 																									 SDTCisInt<3>]>;
 
-def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
-
-//def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
-//                                                  SDTCisVT<1, i32>,
-//																									SDTCisVT<2, i32>]>;
-
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
                                                   SDTCisVT<1, i32>,
 																									SDTCisInt<2>]>;
+
+def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
+                                                  SDTCisSameAs<1, 2>, 
+																									SDTCisInt<3>,
+																									SDTCisInt<4>]>;
 
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
@@ -35,13 +34,12 @@ def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
                                                   SDTCisInt<2>]>;
 
-def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC,
-                            [SDNPHasChain]>;
-
+def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain]>;
+def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
-def TriCoresub    : SDNode<"TriCoreISD::SUB", SDTIntBinOp, [ ]>;
-
+def TriCoresub     : SDNode<"TriCoreISD::SUB", SDTIntBinOp, []>;
+def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
 
 def jmptarget : Operand<OtherVT> {
   let PrintMethod = "printPCRelImmOperand";
@@ -93,10 +91,8 @@ let isCommutable = 1 in {
 }
 
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
-	        "sub.a %a10, $imm",
-                []> 
+	        "sub.a %a10, $imm", []> 
 {
-  //let Constraints = "$src1 = $d";
 	let Defs = [A10];
 	let Uses = [A10];
 	
@@ -161,7 +157,7 @@ multiclass Logical32_1<bits<8> opcode1, string asmstring,
 }
 
 multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr, 
-                    string asmstring, SDNode OpNode, bit isComm=0 >
+                    string asmstring, SDNode OpNode, bit isComm=1 >
 {
 
   def sc: SC<opcode1_sc, (outs DataRegs:$d), 
@@ -171,7 +167,7 @@ multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr,
 
   def srr: SRR<opcode1_srr, (outs DataRegs:$d), 
             (ins DataRegs:$s1, DataRegs:$s2),
-            !strconcat(asmstring, " $d, $s1, $s2"),
+            !strconcat(asmstring, " $d, $s2"),
             [(set DataRegs:$d, (OpNode DataRegs:$s1, DataRegs:$s2))]>
   {
         let Constraints = "$s1 = $d";
@@ -179,8 +175,9 @@ multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr,
 }
 
 
-defm AND : Logical32_0<0x08, "and", and>;
 defm AND : Logical16<0x16, 0x26, "and", and>;
+defm AND : Logical32_0<0x08, "and", and>;
+
 
 defm NAND : Logical32_1<0x09, "nand", and, not>;
 defm NOR : Logical32_1<0x0B, "nor", or, not>;
@@ -376,6 +373,14 @@ let isBarrier = 1 in {
 //	
 //}// isBranch, isTerminator
 		
+
+let usesCustomInserter = 1 in {
+  def Select8  : TriCorePseudoInst<(outs DataRegs:$dst),
+  		                             (ins DataRegs:$src, DataRegs:$src2, i32imm:$cc, DataRegs:$src1 ),
+																	 "# Select8 PSEUDO",
+																	 [(set DataRegs:$dst,
+                                   (TriCoreselectcc DataRegs:$src, DataRegs:$src2, imm:$cc, DataRegs:$src1))]>;
+}
 
 //===----------------------------------------------------------------------===//
 // Pseudo Instructions
