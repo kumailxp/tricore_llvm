@@ -328,7 +328,7 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	switch (N->getOpcode()) {
 	case ISD::FrameIndex: {
 		//FrameIndexSDNode *FSDNode = cast<FrameIndexSDNode>(N);
-		//outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
+		outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
 		int FI = cast<FrameIndexSDNode>(N)->getIndex();
 		//N->dump(CurDAG);
 		SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
@@ -350,6 +350,9 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 				op1, zeroConst);
 	}
 	case ISD::STORE: {
+		//StoreSDNode *SD = cast<StoreSDNode>(N);
+		//outs()<< "getSizeInBits: " << SD->getMemoryVT().getSizeInBits() << "\n";
+		//outs()<< "getAlignment: " << SD->getAlignment() << "\n";
 		ptyType = false;
 		ptyType = (N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR) ?
 				true : false;

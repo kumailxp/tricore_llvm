@@ -62,6 +62,23 @@ def TriCore_COND_GE : PatLeaf<(i32 2)>;
 def TriCore_COND_LT : PatLeaf<(i32 3)>;
 
 //===----------------------------------------------------------------------===//
+// Pattern Fragments for Load/Store Instructions
+//===----------------------------------------------------------------------===//
+
+class AlignedStore<PatFrag Node> :
+  PatFrag<(ops node:$val, node:$ptr), (Node node:$val, node:$ptr), [{
+  StoreSDNode *SD = cast<StoreSDNode>(N);
+  outs()<< "SS: " << SD->getMemoryVT().getSizeInBits() << "\n"; 
+  return SD->getMemoryVT().getSizeInBits()/8 <= SD->getAlignment();
+}]>;
+
+def store_a         : AlignedStore<store>;
+def truncstorei16_a : AlignedStore<truncstorei16>;
+
+def STBbol : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
+                  "st.b $off16, $s1_d",
+                  [(truncstorei8 DataRegs:$s1_d, addr:$off16)]>;
+//===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
 def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
@@ -247,7 +264,7 @@ let mayLoad = 1 in
 										 [(set DataRegs:$s1_d, (load addr:$off16))]>;
 
 let Predicates = [isnotPointer] in 
-def STR : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
+def STRbol : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
                   "st.w $off16, $s1_d",
                   [(store DataRegs:$s1_d, addr:$off16)]>;
 
@@ -398,8 +415,6 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
 //===----------------------------------------------------------------------===//
 // Patterns
 //===----------------------------------------------------------------------===//
-
-
 def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
           (BL tglobaladdr:$dst)>;
 

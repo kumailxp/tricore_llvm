@@ -91,21 +91,16 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   unsigned BasePtr = (TFI->hasFP(MF) ? TriCore::A14 : TriCore::A10);
   // Determine if we can eliminate the index from this kind of instruction.
   unsigned ImmOpIdx = 0;
-
-
-
-
+  MI.dump();
   switch (MI.getOpcode()) {
   default:
-    // Not supported yet.
+  	llvm_unreachable("not supported yet!");
     return;
   case TriCore::ADDrc: {
   		//MF.dump();
-  		//outs() <<""
-    	//const LEGFrameLowering *TFI = getFrameLowering(MF);
     	int Offset = MFI->getObjectOffset(FI);
- 	    Offset += MF.getFrameInfo()->getStackSize();
-  	  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+ 	    //Offset += MF.getFrameInfo()->getStackSize();
+  	  //Offset += MI.getOperand(FIOperandNum + 1).getImm();
 
   	  Offset = -Offset;
     	outs().changeColor(raw_ostream::GREEN,1)<<"Offset: " << Offset << "\n" ;
@@ -127,22 +122,27 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   			BuildMI(MBB, std::next(II), dl, TII.get(TriCore::ADDrc), DstReg)
   				.addReg(DstReg).addImm(-Offset);
 
-
-    	return;
+   	return;
     }
 
   case TriCore::LDR:
-  case TriCore::STR:
+  case TriCore::STRbol:
   case TriCore::STAbol:
+  case TriCore::STBbol:
+  	outs() << "FIOperandNum: " << FIOperandNum <<"\n";
     ImmOpIdx = FIOperandNum + 1;
     break;
   }
 
   // FIXME: check the size of offset.
   MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
-  int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize() + ImmOp.getImm();
+  outs() << "getObjectOffset: " << MFI->getObjectOffset(FI) << "\n";
+  outs() << "getStackSize: " << MFI->getStackSize() << "\n";
+  outs() << "ImmOp.getImm(): " << ImmOp.getImm() << "\n";
+  int Offset = MFI->getObjectOffset(FI);
+  //int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize() + ImmOp.getImm();
   FIOp.ChangeToRegister(BasePtr, false);
-  ImmOp.setImm(-Offset);
+  ImmOp.setImm(Offset);
 }
 
 unsigned TriCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {

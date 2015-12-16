@@ -216,7 +216,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
     break;
   }
   TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
-  return DAG.getNode(TriCoreISD::CMP, dl, MVT::Glue, LHS, RHS, TargetCC);
+  return DAG.getNode(TriCoreISD::CMP, dl, MVT::i32, LHS, RHS, TargetCC);
 }
 
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
@@ -244,8 +244,6 @@ SDValue TriCoreTargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   SDValue TargetCC;
   SDValue Flag = EmitCMP(LHS, RHS, CC, dl, DAG, TargetCC);
   EVT VT = Op.getValueType();
-  SDValue One  = DAG.getConstant(1, dl, VT);
-  SDValue Zero = DAG.getConstant(0, dl, VT);
   SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
   SDValue Ops[] = {LHS, RHS, TargetCC, Flag};
 

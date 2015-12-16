@@ -133,7 +133,7 @@ void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
 					MFI.getObjectAlignment(FrameIndex));
 
 
-	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STR))
+	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STRbol))
 	.addReg(SrcReg, getKillRegState(isKill))
 	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
 }
