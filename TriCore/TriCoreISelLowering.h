@@ -102,6 +102,11 @@ private:
 
   // Lower Shift Instruction
   SDValue LowerShifts(SDValue Op, SelectionDAG &DAG) const;
+
+  //SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG) const;
+
+  bool isTruncateFree(Type *Ty1, Type *Ty2) const;
+  bool isTruncateFree(EVT VT1, EVT VT2) const;
 };
 }
 

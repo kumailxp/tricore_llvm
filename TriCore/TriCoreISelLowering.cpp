@@ -72,6 +72,11 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
 
   setSchedulingPreference(Sched::Source);
 
+//  for (MVT VT : MVT::integer_valuetypes()) {
+//     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i8,  Expand);
+//     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i16,  Expand);
+//   }
+
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
@@ -92,8 +97,23 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
   case ISD::SETCC:            return LowerSETCC(Op, DAG);
   case ISD::SHL:
   case ISD::SRL:
-  case ISD::SRA:							return LowerShifts(Op, DAG);
+  case ISD::SRA:              return LowerShifts(Op, DAG);
   }
+}
+
+bool TriCoreTargetLowering::isTruncateFree(Type *Ty1,
+                                          Type *Ty2) const {
+  if (!Ty1->isIntegerTy() || !Ty2->isIntegerTy())
+    return false;
+
+  return (Ty1->getPrimitiveSizeInBits() > Ty2->getPrimitiveSizeInBits());
+}
+
+bool TriCoreTargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
+  if (!VT1.isInteger() || !VT2.isInteger())
+    return false;
+
+  return (VT1.getSizeInBits() > VT2.getSizeInBits());
 }
 
 
@@ -243,7 +263,6 @@ SDValue TriCoreTargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
   SDValue TargetCC;
   SDValue Flag = EmitCMP(LHS, RHS, CC, dl, DAG, TargetCC);
-  EVT VT = Op.getValueType();
   SDVTList VTs = DAG.getVTList(Op.getValueType(), MVT::Glue);
   SDValue Ops[] = {LHS, RHS, TargetCC, Flag};
 

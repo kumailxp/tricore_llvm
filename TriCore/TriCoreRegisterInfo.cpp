@@ -91,7 +91,7 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   unsigned BasePtr = (TFI->hasFP(MF) ? TriCore::A14 : TriCore::A10);
   // Determine if we can eliminate the index from this kind of instruction.
   unsigned ImmOpIdx = 0;
-  MI.dump();
+  //MI.dump();
   switch (MI.getOpcode()) {
   default:
   	llvm_unreachable("not supported yet!");
@@ -125,20 +125,25 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
    	return;
     }
 
-  case TriCore::LDR:
-  case TriCore::STRbol:
-  case TriCore::STAbol:
-  case TriCore::STBbol:
-  	outs() << "FIOperandNum: " << FIOperandNum <<"\n";
+  case TriCore::LDWbo:
+  case TriCore::LDBbo:
+  case TriCore::LDBUbo:
+  case TriCore::LDHbo:
+  case TriCore::LDHUbo:
+  case TriCore::STBbo:
+  case TriCore::STWbo:
+  case TriCore::STAbo:
+  case TriCore::STHbo:
+  	//outs() << "FIOperandNum: " << FIOperandNum <<"\n";
     ImmOpIdx = FIOperandNum + 1;
     break;
   }
 
   // FIXME: check the size of offset.
   MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
-  outs() << "getObjectOffset: " << MFI->getObjectOffset(FI) << "\n";
-  outs() << "getStackSize: " << MFI->getStackSize() << "\n";
-  outs() << "ImmOp.getImm(): " << ImmOp.getImm() << "\n";
+//  outs() << "getObjectOffset: " << MFI->getObjectOffset(FI) << "\n";
+//  outs() << "getStackSize: " << MFI->getStackSize() << "\n";
+//  outs() << "ImmOp.getImm(): " << ImmOp.getImm() << "\n";
   int Offset = MFI->getObjectOffset(FI);
   //int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize() + ImmOp.getImm();
   FIOp.ChangeToRegister(BasePtr, false);

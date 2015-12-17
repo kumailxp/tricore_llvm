@@ -61,23 +61,7 @@ def TriCore_COND_NE : PatLeaf<(i32 1)>;
 def TriCore_COND_GE : PatLeaf<(i32 2)>;
 def TriCore_COND_LT : PatLeaf<(i32 3)>;
 
-//===----------------------------------------------------------------------===//
-// Pattern Fragments for Load/Store Instructions
-//===----------------------------------------------------------------------===//
 
-class AlignedStore<PatFrag Node> :
-  PatFrag<(ops node:$val, node:$ptr), (Node node:$val, node:$ptr), [{
-  StoreSDNode *SD = cast<StoreSDNode>(N);
-  outs()<< "SS: " << SD->getMemoryVT().getSizeInBits() << "\n"; 
-  return SD->getMemoryVT().getSizeInBits()/8 <= SD->getAlignment();
-}]>;
-
-def store_a         : AlignedStore<store>;
-def truncstorei16_a : AlignedStore<truncstorei16>;
-
-def STBbol : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
-                  "st.b $off16, $s1_d",
-                  [(truncstorei8 DataRegs:$s1_d, addr:$off16)]>;
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
@@ -258,20 +242,52 @@ def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOV32
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
-let mayLoad = 1 in
-	def LDR  : BOL<0x62,(outs DataRegs:$s1_d), (ins memsrc:$off16),
-										 "ld.w $s1_d, $off16",
-										 [(set DataRegs:$s1_d, (load addr:$off16))]>;
+def sextloadi32i8 : PatFrag<(ops node:$ptr), (i32 (sextloadi8 node:$ptr))>;
+def zextloadi32i8 : PatFrag<(ops node:$ptr), (i32 (zextloadi8 node:$ptr))>;
+def  extloadi32i8 : PatFrag<(ops node:$ptr), (i32 ( extloadi8 node:$ptr))>;
+
+def sextloadi32i16 : PatFrag<(ops node:$ptr), (i32 (sextloadi16 node:$ptr))>;
+def zextloadi32i16 : PatFrag<(ops node:$ptr), (i32 (zextloadi16 node:$ptr))>;
+def  extloadi32i16 : PatFrag<(ops node:$ptr), (i32 ( extloadi16 node:$ptr))>;
+
+class AlignedLoad<bits<6> op2, string opstr, PatFrag PF> : 
+			BO<0x09, op2, (outs DataRegs:$d),
+			   (ins memsrc:$off10),
+			 	 !strconcat(opstr, " $d, $off10"),
+				 [(set DataRegs:$d, (i32 (PF addr:$off10)))]> 
+{
+	let mayLoad = 1;
+}
+
+def LDWbo  : AlignedLoad<0x24, "ld.w"  , load>;
+def LDBUbo : AlignedLoad<0x21, "ld.bu" , zextloadi8>;
+def LDBbo  : AlignedLoad<0x20, "ld.b"  , sextloadi8>;
+def LDHUbo : AlignedLoad<0x23, "ld.hu" , zextloadi16>;
+def LDHbo  : AlignedLoad<0x22, "ld.h"  , sextloadi16>;
+
+
+def : Pat<(extloadi8 addr:$src), (LDBbo addr:$src)>;
+def : Pat<(extloadi16 addr:$src), (LDHbo addr:$src)>;
 
 let Predicates = [isnotPointer] in 
-def STRbol : BOL<0x63,(outs), (ins DataRegs:$s1_d, memsrc:$off16),
-                  "st.w $off16, $s1_d",
-                  [(store DataRegs:$s1_d, addr:$off16)]>;
+def STBbo : BO<0x89, 0x20,(outs), (ins DataRegs:$d, memsrc:$off10),
+							"st.b $off10, $d",
+							[(truncstorei8 DataRegs:$d, addr:$off10)]>;
+
+let Predicates = [isnotPointer] in 
+def STHbo : BO<0x89, 0x22,(outs), (ins DataRegs:$d, memsrc:$off10),
+							"st.h $off10, $d",
+							[(truncstorei16 DataRegs:$d, addr:$off10)]>;
+
+let Predicates = [isnotPointer] in 
+def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$off10),
+                  "st.w $off10, $d",
+                  [(store DataRegs:$d, addr:$off10)]>;
 
 let Predicates = [isPointer] in 
-def STAbol : BOL<0x63,(outs), (ins AddrRegs:$s1_d, memsrc:$off16),
-                  "st.a $off16, $s1_d",
-                  [(store i32:$s1_d, addr:$off16)]>;
+def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$off10),
+                  "st.a $off10, $d",
+                  [(store i32:$d, addr:$off10)]>;
 
 //===----------------------------------------------------------------------===//
 // Shift Instructions
@@ -304,6 +320,31 @@ let isCall = 1, Defs = [A11], Uses = [A10] in {
   def BL : B<0x6D, (outs), (ins i32imm:$disp),
                       "call $disp ",  [(tricore_call imm:$disp)]>;
 }
+
+//===----------------------------------------------------------------------===//
+// Extension Instructions
+//===----------------------------------------------------------------------===//
+def zext8  : PatFrag<(ops node:$src), (and node:$src, 0xff)>;
+def zext16 : PatFrag<(ops node:$src), (and node:$src, 0xffff)>;
+
+def ZEXT16r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
+                    "zxt16\t$dst",
+                    [(set DataRegs:$dst, (zext16 DataRegs:$src))]>;
+
+def ZEXT8r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
+                    "zxt8\t$dst",
+                    [(set DataRegs:$dst, (zext8 DataRegs:$src))]>;
+
+def sext8  : PatFrag<(ops node:$src), (sext_inreg node:$src, i8)>;
+def sext16 : PatFrag<(ops node:$src), (sext_inreg node:$src, i16)>;
+
+def SEXT16r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
+                    "sxt16\t$dst",
+                    [(set DataRegs:$dst, (sext16 DataRegs:$src))]>;
+
+def SEXT8r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
+                    "sxt8\t$dst",
+                    [(set DataRegs:$dst, (sext8 DataRegs:$src))]>;
 
 //===----------------------------------------------------------------------===//
 // Compare Instructions

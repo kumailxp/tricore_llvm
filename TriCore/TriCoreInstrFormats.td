@@ -270,8 +270,6 @@ class BRC<bit op2, bits<8> op1, dag outs, dag ins, string asmstr,
  
 }
 
-
-
 //===----------------------------------------------------------------------===//
 // 32-bit BOL Instr Format: <off16[9:6]|off16[15:10]|off16[5:0]|s2|s1/d|op1>
 //===----------------------------------------------------------------------===//
@@ -286,6 +284,22 @@ class BOL<bits<8> op1, dag outs, dag ins, string asmstr,
   let Inst{21-16} = off16{5-0};
   let Inst{27-22} = off16{15-10};
   let Inst{31-28} = off16{9-6};
+}
+
+//===----------------------------------------------------------------------===//
+// 32-bit BO Instr Format: <off10[9:6]|op2|off10[5:0]|d|s1|op1>
+//===----------------------------------------------------------------------===//
+class BO<bits<8> op1, bits<6> op2, dag outs, dag ins, string asmstr, 
+                list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
+  bits<10> off10;
+  bits<4> s1;
+  bits<4> d;
+  let Inst{7-0} = op1;
+  let Inst{11-8} = s1;
+  let Inst{15-12} = d;
+  let Inst{21-16} = off10{5-0};
+  let Inst{27-22} = op2;
+  let Inst{31-28} = off10{9-6};
 }
 
 // TriCore pseudo instructions format

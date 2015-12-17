@@ -328,7 +328,7 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	switch (N->getOpcode()) {
 	case ISD::FrameIndex: {
 		//FrameIndexSDNode *FSDNode = cast<FrameIndexSDNode>(N);
-		outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
+		//outs() <<"Func Name: " <<MF->getFunction()->getName() <<"\n";
 		int FI = cast<FrameIndexSDNode>(N)->getIndex();
 		//N->dump(CurDAG);
 		SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
@@ -358,9 +358,32 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 				true : false;
 		break;
 	}
+	case ISD::LOAD:{
+		LoadSDNode *LD = cast<LoadSDNode>(N);
+		LD->dump();
+		outs()<<"LD getAlignment: " << LD->getAlignment() << "\n";
+		outs()<<"LD getOpcode: " << LD->getOpcode() << "\n";
+		outs()<<"LD getNumOp: " << LD->getNumOperands() << "\n";
+		outs()<<"LD getExtensionType: " << (int)LD->getExtensionType() << "\n";
+		outs()<<"LD getEVTString: " << LD->getMemoryVT().getEVTString() << "\n";
+		outs()<<"LD getOriginalAlignment: " << LD->getOriginalAlignment() << "\n";
+		outs()<<"LD HasDebugValue: " << LD->getHasDebugValue() << "\n";
+//		LD->getOperand(0).dump();
+//		LD->getOperand(1).dump();
+//		LD->getOperand(2).dump();
+		SDValue chain =  LD->getChain();
+		chain.dump();
+		//N->dump();
+		break;
+	}
+	case ISD::SEXTLOAD: {
+		outs()<<"Signextend\n";
+		outs()<<"LD getNumOp: " << N->getNumOperands() << "\n";
+		break;
+	}
 }
 
-	SDNode *ResNode = SelectCode(N);
+		SDNode *ResNode = SelectCode(N);
 
 	DEBUG(errs() << "=> ");
 	if (ResNode == nullptr || ResNode == N)
