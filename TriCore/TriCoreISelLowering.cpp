@@ -47,13 +47,13 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::RET_FLAG: return "TriCoreISD::RetFlag";
   case TriCoreISD::LOAD_SYM: return "TriCoreISD::LOAD_SYM";
   case TriCoreISD::MOVEi32:  return "TriCoreISD::MOVEi32";
+  case TriCoreISD::MOVEi64:  return "TriCoreISD::MOVEi64";
   case TriCoreISD::CALL:     return "TriCoreISD::CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
   case TriCoreISD::SELECT_CC:return "TriCoreISD::SELECT_CC";
   case TriCoreISD::CMP:      return "TriCoreISD::CMP";
   case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
   case TriCoreISD::SH:       return "TriCoreISD::SH";
-	case TriCoreISD::SUB:      return "TriCoreISD::SUB";
   }
 }
 
@@ -62,7 +62,7 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   // Set up the register classes.
   addRegisterClass(MVT::i32, &TriCore::DataRegsRegClass);
   addRegisterClass(MVT::i32, &TriCore::AddrRegsRegClass);
-  //addRegisterClass(MVT::i32, &TriCore::AddrRegsOthersRegClass);
+  addRegisterClass(MVT::i64, &TriCore::ExtRegsRegClass);
 
 
   // Compute derived properties from the register classes

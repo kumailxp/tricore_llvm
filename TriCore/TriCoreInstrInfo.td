@@ -16,29 +16,28 @@ include "TriCoreOperators.td"
 
 def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
-																									 SDTCisInt<3>]>;
+																									 SDTCisVT<3, i32>]>;
 
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
                                                   SDTCisVT<1, i32>,
-																									SDTCisInt<2>]>;
+																									SDTCisVT<2, i32>]>;
 
 def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
                                                   SDTCisSameAs<1, 2>, 
-																									SDTCisInt<3>,
-																									SDTCisInt<4>]>;
+																									SDTCisVT<3, i32>,
+																									SDTCisVT<4, i32>]>;
 
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
                                                   SDTCisPtrTy<0>]>;
 
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
-                                                  SDTCisInt<2>]>;
+                                                  SDTCisVT<2, i32>]>;
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain]>;
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
-def TriCoresub     : SDNode<"TriCoreISD::SUB", SDTIntBinOp, []>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
 
 def jmptarget : Operand<OtherVT> {
@@ -50,10 +49,11 @@ def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
 
+//def isPointer_1  : PatLeaf<(imm), [{ return N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR; }]>;
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
-def isInteger : Predicate<"isInteger() == true">;
-def isnotInteger : Predicate<"isInteger() == false">;
+//def isInteger : Predicate<"isInteger() == true">;
+//def isnotInteger : Predicate<"N->getOperand(1)">;
 
 // TriCore Condition Codes
 def TriCore_COND_EQ : PatLeaf<(i32 0)>;
@@ -205,65 +205,52 @@ def NOTsr : SR<0x46, 0x0, (outs DataRegs: $d), (ins DataRegs:$s1),
 // Mov Immediate Instructions
 //===----------------------------------------------------------------------===//
 
-def MOVrr : RR<0x0B, 0x1F, (outs DataRegs:$d), (ins DataRegs:$s2),
-				"mov $d, $s2", [ ]>;
+class MOV_RR<bits<8> op1, bits<8> op2, string opstr, 
+										RegisterClass outregClass, RegisterClass inregClass>:
+										RR <op1, op2,
+										(outs outregClass:$d),
+										(ins inregClass:$s2),
+										!strconcat(opstr, " $d, $s2"), []>;
 
-
-def MOVDrr : RR<0x01, 0x4C, (outs DataRegs:$d), (ins AddrRegs:$s2),
-				"mov.d $d, $s2", [ ]>;
-
-def MOVArr : RR<0x01, 0x63, (outs AddrRegs:$d), (ins DataRegs:$s2),
-				"mov.a $d, $s2", [ ]>;
-
-def MOVAArr : RR<0x01, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s2),
-				"mov.aa $d, $s2", [ ]>;
-
-class MOV<bits<8> opcode, string opstr, dag ins, list<dag>pattern>
+class MOV_CONST<bits<8> opcode, string opstr, dag ins, list<dag> pattern>
     : RLC<opcode, (outs DataRegs:$d), ins,
-              !strconcat(opstr, " $d, $const16"), pattern>;
+      !strconcat(opstr, " $d, $const16"), pattern>;
 
-def MOVrlc : MOV<0x3B,"mov", (ins s16imm:$const16) ,
-              [(set i32:$d, immSExt16:$const16)]>;
+def MOVrr   : MOV_RR<0x0B, 0x1F, "mov", DataRegs, DataRegs>;
+def MOVDrr  : MOV_RR<0x01, 0x4C, "mov.d", DataRegs, AddrRegs>;
+def MOVArr  : MOV_RR<0x01, 0x63, "mov.a", AddrRegs, DataRegs>;
+def MOVAArr : MOV_RR<0x01, 0x00, "mov.aa", AddrRegs, AddrRegs>;
+def MOVrlc  : MOV_CONST<0x3B,"mov", (ins s16imm:$const16) ,
+              [(set DataRegs:$d, immSExt16:$const16)]>;
+def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
+              [(set DataRegs:$d, immZExt16:$const16)]>;
 
-def MOVUrlc : MOV<0xBB,"mov.u", (ins u16imm:$const16) ,
-              [(set i32:$d, immZExt16:$const16)]>;
+let Constraints = "$fakesrc = $d" in
+def MOVHrlc : MOV_CONST<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16), []>;
 
-def MOVHIi16 : MOV<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16), 
-               []>
-{
-	let Constraints = "$fakesrc = $d";
-}
-
-let isReMaterializable = 1, isAsCheapAsAMove = 1 in
-def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const16), "MOV32 Pseudo",
-                     [(set i32:$d, (movei32 imm:$const16))]>;
-
+let isReMaterializable = 1, isAsCheapAsAMove = 1 in 
+def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const32), "MOV32 Pseudo",
+                     [(set DataRegs:$d, (movei32 imm:$const32))]>;
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
-def sextloadi32i8 : PatFrag<(ops node:$ptr), (i32 (sextloadi8 node:$ptr))>;
-def zextloadi32i8 : PatFrag<(ops node:$ptr), (i32 (zextloadi8 node:$ptr))>;
-def  extloadi32i8 : PatFrag<(ops node:$ptr), (i32 ( extloadi8 node:$ptr))>;
-
-def sextloadi32i16 : PatFrag<(ops node:$ptr), (i32 (sextloadi16 node:$ptr))>;
-def zextloadi32i16 : PatFrag<(ops node:$ptr), (i32 (zextloadi16 node:$ptr))>;
-def  extloadi32i16 : PatFrag<(ops node:$ptr), (i32 ( extloadi16 node:$ptr))>;
-
-class AlignedLoad<bits<6> op2, string opstr, PatFrag PF> : 
-			BO<0x09, op2, (outs DataRegs:$d),
+class AlignedLoad<bits<6> op2, string opstr, 
+								PatFrag PF, RegisterClass RC = DataRegs, ValueType intType = i32> : 
+			BO<0x09, op2, (outs RC:$d),
 			   (ins memsrc:$off10),
 			 	 !strconcat(opstr, " $d, $off10"),
-				 [(set DataRegs:$d, (i32 (PF addr:$off10)))]> 
+				 [(set RC:$d, (intType (PF addr:$off10)))]> 
 {
 	let mayLoad = 1;
 }
 
-def LDWbo  : AlignedLoad<0x24, "ld.w"  , load>;
-def LDBUbo : AlignedLoad<0x21, "ld.bu" , zextloadi8>;
 def LDBbo  : AlignedLoad<0x20, "ld.b"  , sextloadi8>;
-def LDHUbo : AlignedLoad<0x23, "ld.hu" , zextloadi16>;
+def LDBUbo : AlignedLoad<0x21, "ld.bu" , zextloadi8>;
 def LDHbo  : AlignedLoad<0x22, "ld.h"  , sextloadi16>;
+def LDHUbo : AlignedLoad<0x23, "ld.hu" , zextloadi16>;
+def LDWbo  : AlignedLoad<0x24, "ld.w"  , load>;
+def LDDbo  : AlignedLoad<0x25, "ld.d"  , load, ExtRegs, i64>;
 
 
 def : Pat<(extloadi8 addr:$src), (LDBbo addr:$src)>;
@@ -283,6 +270,11 @@ let Predicates = [isnotPointer] in
 def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$off10),
                   "st.w $off10, $d",
                   [(store DataRegs:$d, addr:$off10)]>;
+
+let Predicates = [isnotPointer] in 
+def STDbo : BO<0x89, 0x25, (outs), (ins ExtRegs:$d, memsrc:$off10),
+                  "st.d $off10, $d",
+                  [(store ExtRegs:$d, addr:$off10)]>;
 
 let Predicates = [isPointer] in 
 def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$off10),
@@ -458,15 +450,44 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
 //===----------------------------------------------------------------------===//
 def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
           (BL tglobaladdr:$dst)>;
-
 def : Pat<(i32 immSExt16:$src),
 					(MOVrlc immSExt16:$src)>;
-
 def : Pat<(i32 immZExt16:$src),
 					(MOVUrlc immZExt16:$src)>;
-
 def : Pat<(i32 imm:$src),
 					(MOVi32 imm:$src)>;
 
+//def : Pat<(i64 imm:$src),
+//          (INSERT_SUBREG (i64 (IMPLICIT_DEF)), (MOVi64 imm:$src), subreg_even)>;
+
+// Lower 32 bits of a 64-bit word 
+def LO32 : SDNodeXForm<imm, [{
+//	uint64_t x = N->getZExtValue();
+//	outs() << "Const: " << N->getZExtValue() << "\n";
+//	outs() << "Const: " << (uint32_t)N->getZExtValue() << "\n";
+//	outs() << "Const: " << (x>>32) << "\n";
+	return CurDAG->getTargetConstant((uint32_t) N->getZExtValue(), SDLoc(N), MVT::i32);
+}]>; 
+
+// Higher 32 bits of a 64-bit word 
+def HI32 : SDNodeXForm<imm, [{
+	return CurDAG->getTargetConstant((uint32_t) (N->getZExtValue()>>32), SDLoc(N), MVT::i32);
+}]>; 
+
+
+def : Pat<(i64 imm:$src),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (MOVi32( LO32 imm:$src)), subreg_even)),
+          		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
+
+//def : Pat<(i64 imm:$imm), 
+//          (INSERT_SUBREG (i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+//          								(MOVi64 imm:$src), sub_even)), 
+//                           (MOVi64 imm:$src), sub_odd)>;
+
+//def : Pat<(i64 imm:$src),
+//					(MOVi64 imm:$src)>;
+
 def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
 		 (MOVi32 tglobaladdr:$dst)>;
+

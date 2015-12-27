@@ -82,7 +82,7 @@ static unsigned materializeOffset(MachineFunction &MF, MachineBasicBlock &MBB,
         .addImm(OffsetLo)
         .setMIFlag(MachineInstr::FrameSetup);
     if (OffsetHi) {
-      BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVHIi16), OffsetReg)
+      BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVHrlc), OffsetReg)
           .addReg(OffsetReg)
           .addImm(OffsetHi)
           .setMIFlag(MachineInstr::FrameSetup);

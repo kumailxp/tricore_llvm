@@ -12,7 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 def MoveImm32Ty : SDTypeProfile<1, 1, [
-  SDTCisSameAs<0, 1>, SDTCisInt<0>
+  SDTCisSameAs<0, 1>, SDTCisVT<0, i32>
+]>;
+
+def MoveImm64Ty : SDTypeProfile<1, 1, [
+  SDTCisSameAs<0, 1>, SDTCisVT<0, i64>
 ]>;
 
 def SDT_TriCoreCallSeqStart : SDCallSeqStart<[ SDTCisVT<0, i32> ]>;
@@ -38,6 +42,7 @@ def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
 def load_sym : SDNode<"TriCoreISD::LOAD_SYM", SDTIntUnaryOp>;
 
 def movei32 : SDNode<"TriCoreISD::MOVEi32", MoveImm32Ty>;
+def movei64 : SDNode<"TriCoreISD::MOVEi64", MoveImm64Ty>;
 
 def tricore_call
     : SDNode<"TriCoreISD::CALL", SDT_TriCoreCall,
@@ -55,7 +60,7 @@ def cc_val : Operand<i32> {
   let PrintMethod = "printCondCode";
 }
 
-def memsrc : Operand<i32> {
+def memsrc : Operand<iPTR> {
   let MIOperandInfo = (ops AddrRegs, i32imm);
   let PrintMethod = "printAddrModeMemSrc";
   let EncoderMethod = "getMemSrcValue";
@@ -70,6 +75,7 @@ def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
 def s4imm      : Operand<i32> { let PrintMethod = "printSExtImm<4>";  }
 def s16imm     : Operand<i32> { let PrintMethod = "printSExtImm<16>"; }
 def s24imm     : Operand<i32> { let PrintMethod = "printSExtImm<24>"; }
+def s32imm     : Operand<i32> { let PrintMethod = "printSExtImm<32>"; }
 def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
 def u4imm      : Operand<i32> { let PrintMethod = "printZExtImm<4>";  }
 def u9imm      : Operand<i32> { let PrintMethod = "printZExtImm<9>";  }
@@ -81,6 +87,7 @@ def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 def immSExt24  : PatLeaf<(imm), [{ return isInt<24>(N->getSExtValue()); }]>;
+def immSExt32  : PatLeaf<(imm), [{ return isInt<32>(N->getSExtValue()); }]>;
 
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
 def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;

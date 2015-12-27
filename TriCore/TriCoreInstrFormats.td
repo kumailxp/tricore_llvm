@@ -36,7 +36,6 @@ class InstTriCore<dag outs, dag ins, string asmstr, list<dag> pattern>
   //dag InOperandList = ins;
   let AsmString   = asmstr;
   let Pattern = pattern;
-
 }
 
 //===----------------------------------------------------------------------===//
@@ -69,9 +68,7 @@ class SRR<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
   
   let Inst{11-8} = s1;
   let Inst{15-12} = s2; 
-
 }
-
 
 //===----------------------------------------------------------------------===//
 // 16-bit SRC Instruction Format: <const4|s1/d|op1>
@@ -84,9 +81,7 @@ class SRC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
   
   let Inst{11-8} = d;
   let Inst{15-12} = const4; 
-
 }
-
 
 //===----------------------------------------------------------------------===//
 // 16-bit SC Instruction Format: <const8|op1>
@@ -97,7 +92,6 @@ class SC<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
   bits<8> const8;
    
   let Inst{15-8} = const8;
- 
 }
 
 //===----------------------------------------------------------------------===//
@@ -111,7 +105,6 @@ class SB<bits<8> op1, dag outs, dag ins,
   let Inst{15-8} = disp8;
   let Inst{7-0} = op1;
 }
-
 
 //===----------------------------------------------------------------------===//
 // 16-bit SBR Instruction Format: <s2|disp4|op1>
@@ -140,7 +133,6 @@ class SR<bits<8> op1, bits<4> op2, dag outs, dag ins, string asmstr,
   
   let Inst{15-12} = op2;
   let Inst{11-8} = s1;
-
 }
 
 //===----------------------------------------------------------------------===//
@@ -160,8 +152,6 @@ class RR<bits<8> op1, bits<8> op2, dag outs, dag ins, string asmstr,
   let Inst{17-16} = n;
   let Inst{27-20} = op2;
   let Inst{31-28} = d;
-  
-
 } 
 
 //===----------------------------------------------------------------------===//
@@ -180,11 +170,7 @@ class RR2<bits<8> op1, bits<12> op2, dag outs, dag ins, string asmstr,
   let Inst{15-12} = s2;
   let Inst{27-16} = op2;
   let Inst{31-28} = d;
-  
-
 } 
-
-
 
 //===----------------------------------------------------------------------===//
 // 32-bit RLC Instruction Format: <d|const16||s1|op1>
@@ -200,8 +186,6 @@ class RLC<bits<8> op1, dag outs, dag ins, string asmstr,
   let Inst{11-8} = s1;
   let Inst{27-12} = const16;
   let Inst{31-28} = d;
-  
-
 } 
 
 //===----------------------------------------------------------------------===//
@@ -221,7 +205,6 @@ class RC<bits<8> op1, bits<7> op2, dag outs, dag ins, string asmstr,
   let Inst{31-28} = d;
 } 
 
-
 //===----------------------------------------------------------------------===//
 // 32-bit B Instruction Format: <disp24[15:0]|disp24[23:16]|op1>
 //===----------------------------------------------------------------------===//
@@ -232,7 +215,6 @@ class B<bits<8> op1, dag outs, dag ins, string asmstr,
   let Inst{15-8} = disp24{23-16};
   let Inst{31-16} = disp24{15-0};
 }
-
 
 //===----------------------------------------------------------------------===//
 // 32-bit BRR Instruction Format: <op2|disp15|s2|s1|op1>
@@ -266,8 +248,6 @@ class BRC<bit op2, bits<8> op1, dag outs, dag ins, string asmstr,
 	let Inst{15-12} = const4;
 	let Inst{30-16} = dip15;
 	let Inst{31} = op2;
-	
- 
 }
 
 //===----------------------------------------------------------------------===//
@@ -307,4 +287,3 @@ class TriCorePseudoInst<dag outs, dag ins, string asmstr, list<dag> pattern>
     : InstTriCore<outs, ins, asmstr, pattern> {
   let isPseudo = 1;
 }
-

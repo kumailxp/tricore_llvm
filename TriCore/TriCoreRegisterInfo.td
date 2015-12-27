@@ -52,21 +52,20 @@ foreach i = 0-15 in {
 }
 
 
-def subreg_lo : SubRegIndex<16> {let Namespace = "TriCore";}
-def subreg_hi : SubRegIndex<16> {let Namespace = "TriCore";}
+def subreg_even: SubRegIndex<32,0> {let Namespace = "TriCore";}
+def subreg_odd : SubRegIndex<32,0> {let Namespace = "TriCore";}
 
 //Extended 64-bit registers
-//let SubRegIndices = [subreg_lo, subreg_hi] in {
-//	def E0 : TriCoreRegWithSubregs<0, "e2", [D0,D1] >, DwarfRegNum<[32]>;
-//	def E2 : TriCoreRegWithSubregs<2, "e3", [D2,D3] >, DwarfRegNum<[33]>;
-//	def E4 : TriCoreRegWithSubregs<4, "e4", [D4,D5] >, DwarfRegNum<[34]>;
-//	def E6 : TriCoreRegWithSubregs<6, "e6", [D6,D7] >, DwarfRegNum<[35]>;
-//	def E8 : TriCoreRegWithSubregs<8, "e8", [D8,D9] >, DwarfRegNum<[36]>;
-//	def E10 : TriCoreRegWithSubregs<10, "e10", [D10,D11] >, DwarfRegNum<[37]>;
-//	def E12 : TriCoreRegWithSubregs<12, "e12", [D12,D13] >, DwarfRegNum<[38]>;
-//	def E14 : TriCoreRegWithSubregs<14, "e14", [D14,D15] >, DwarfRegNum<[39]>;
-//
-//}
+let SubRegIndices = [subreg_even, subreg_odd] in {
+	def E0 : TriCoreRegWithSubregs<0,   "e0",  [D0,D1] >, DwarfRegNum<[32]>;
+	def E2 : TriCoreRegWithSubregs<2,   "e2",  [D2,D3] >, DwarfRegNum<[33]>;
+	def E4 : TriCoreRegWithSubregs<4,   "e4",  [D4,D5] >, DwarfRegNum<[34]>;
+	def E6 : TriCoreRegWithSubregs<6,   "e6",  [D6,D7] >, DwarfRegNum<[35]>;
+	def E8 : TriCoreRegWithSubregs<8,   "e8",  [D8,D9] >, DwarfRegNum<[36]>;
+	def E10 : TriCoreRegWithSubregs<10, "e10", [D10,D11] >, DwarfRegNum<[37]>;
+	def E12 : TriCoreRegWithSubregs<12, "e12", [D12,D13] >, DwarfRegNum<[38]>;
+	def E14 : TriCoreRegWithSubregs<14, "e14", [D14,D15] >, DwarfRegNum<[39]>;
+}
 
 
 //Program Status Information Registers
@@ -102,15 +101,10 @@ def AddrRegs : RegisterClass<"TriCore", [i32], 32, (add
 		A2, A3, A4, A5, A6,
 		A7, A12, A13, A14)>;
 
-def AddrRegsOthers : RegisterClass<"TriCore", [i32], 32, (add
-		// Others
-		A2, A3, A4, A5, A6,
-		A7, A12, A13, A14)>;
-
-//def ExtRegs : RegisterClass<"TriCore", [i64], 64, (add
-//		E0, E2, E4,
-//		E6, E8, E10,
-//		E12, E14)>;
+def ExtRegs : RegisterClass<"TriCore", [i64], 32, (add
+		E2, E4,
+		E6, E8, E10,
+		E12, E14, E0)>;
 
 def PSRegs : RegisterClass<"TriCore", [i32], 32, (add
 		PSW, PCXI, PC)>;

@@ -431,23 +431,22 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
 ///////////////////////////////////////////
 
-//
 bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 {
+	DebugLoc DL = MI->getDebugLoc();
+	MachineBasicBlock &MBB = *MI->getParent();
+
 	switch (MI->getOpcode())
 	{
 	default:
 		return false;
 	case TriCore::MOVi32: {
-		outs() << "expandPostRAPseudo\n";
-		DebugLoc DL = MI->getDebugLoc();
-		MachineBasicBlock &MBB = *MI->getParent();
 
 		const unsigned DstReg = MI->getOperand(0).getReg();
 		const bool DstIsDead = MI->getOperand(0).isDead();
 
 		const MachineOperand &MO = MI->getOperand(1);
-		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHIi16))
+		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
                     						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 																.addReg(DstReg);
 
