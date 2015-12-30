@@ -69,9 +69,9 @@ let SubRegIndices = [subreg_even, subreg_odd] in {
 
 
 //Program Status Information Registers
-def PSW : TriCorePSReg<0, "PSW">, DwarfRegNum<[40]>;
+def PSW  : TriCorePSReg<0, "PSW">, DwarfRegNum<[40]>;
 def PCXI : TriCorePSReg<1, "PCXI">, DwarfRegNum<[41]>;
-def PC : TriCorePSReg<2, "PC">, DwarfRegNum<[42]>;
+def PC   : TriCorePSReg<2, "PC">, DwarfRegNum<[42]>;
 
 
 

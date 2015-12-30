@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/MCContext.h"
@@ -431,6 +432,13 @@ void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
 
 ///////////////////////////////////////////
 
+/// Splits a register into a lo:hi register pair.
+void TriCoreInstrInfo::splitRegs(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const {
+	LoReg = RI.getSubReg(Reg, TriCore::subreg_even);
+	HiReg = RI.getSubReg(Reg, TriCore::subreg_odd);
+}
+
+
 bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 {
 	DebugLoc DL = MI->getDebugLoc();
@@ -440,6 +448,101 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	{
 	default:
 		return false;
+	case TriCore::ADDi64: {
+
+		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
+		          Src1LoReg, Src1HiReg, DstLoReg, DstHiReg;
+
+		unsigned DstReg = MI->getOperand(0).getReg();
+		unsigned Src0Reg = MI->getOperand(1).getReg();
+		unsigned Src1Reg = MI->getOperand(2).getReg();
+
+		bool DstIsDead = MI->getOperand(0).isDead();
+		bool Src0IsKill = MI->getOperand(1).isKill();
+		bool Src1IsKill = MI->getOperand(2).isKill();
+		bool ImpIsDead = MI->getOperand(3).isDead();
+
+		splitRegs(Src0Reg, Src0LoReg, Src0HiReg);
+		splitRegs(Src1Reg, Src1LoReg, Src1HiReg);
+		splitRegs(DstReg, DstLoReg, DstHiReg);
+
+		OpLo = TriCore::ADDXrr;
+		OpHi = TriCore::ADDCrr;
+
+		auto MIBLO =
+		      BuildMI(MBB, MI, DL, get(OpLo))
+		          .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+		          .addReg(Src0LoReg, getKillRegState(Src0IsKill))
+		          .addReg(Src1LoReg, getKillRegState(Src1IsKill));
+
+		//PSW is implicitly killed
+		MIBLO->getOperand(4).setIsKill();
+
+		auto MIBHI =
+				      BuildMI(MBB, MI, DL, get(OpHi))
+				          .addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+				          .addReg(Src0HiReg, getKillRegState(Src0IsKill))
+				          .addReg(Src1HiReg, getKillRegState(Src1IsKill));
+
+		if (ImpIsDead)
+		    MIBHI->getOperand(3).setIsDead();
+
+		// PSW is always implicitly killed
+		MIBHI->getOperand(4).setIsKill();
+		MBB.erase(MI);
+		return true;
+	}
+	case TriCore::ADDi64C: {
+		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
+		          DstLoReg, DstHiReg;
+
+		unsigned DstReg = MI->getOperand(0).getReg();
+		unsigned Src0Reg = MI->getOperand(1).getReg();
+
+		bool DstIsDead = MI->getOperand(0).isDead();
+		bool Src0IsKill = MI->getOperand(1).isKill();
+		bool ImpIsDead = MI->getOperand(3).isDead();
+
+		int64_t immVal = MI->getOperand(2).getImm();
+		int32_t immLo = immVal & 0xffff;
+		int32_t immHi = (immVal>>32) & 0xffff;
+
+		splitRegs(Src0Reg, Src0LoReg, Src0HiReg);
+		splitRegs(DstReg, DstLoReg, DstHiReg);
+
+		OpLo = TriCore::ADDXrc;
+		OpHi = TriCore::ADDCrc;
+
+		if (immLo <= 0xff) {
+			auto MIBLO =
+			      BuildMI(MBB, MI, DL, get(OpLo))
+			          .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+			          .addReg(Src0LoReg, getKillRegState(Src0IsKill))
+								.addImm(immLo);
+
+			//PSW is implicitly killed
+			MIBLO->getOperand(4).setIsKill();
+		}
+		else {
+					}
+		if (immHi <= 0xff) {
+			auto MIBHI =
+						BuildMI(MBB, MI, DL, get(OpHi))
+								.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+								.addReg(Src0HiReg, getKillRegState(Src0IsKill))
+								.addImm(immHi);
+
+			if (ImpIsDead)
+					MIBHI->getOperand(3).setIsDead();
+
+			// PSW is always implicitly killed
+			MIBHI->getOperand(4).setIsKill();
+		}
+
+		MBB.erase(MI);
+		return true;
+
+	}
 	case TriCore::MOVi32: {
 
 		const unsigned DstReg = MI->getOperand(0).getReg();
@@ -447,8 +550,7 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 
 		const MachineOperand &MO = MI->getOperand(1);
 		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
-                    						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-																.addReg(DstReg);
+                    						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead));
 
 		auto ADDIrlc = BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
                         						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
@@ -458,10 +560,10 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			const unsigned Lo16 = Imm & 0xffff;
 			const unsigned Hi16 = (Imm >> 16) & 0xffff;
 			HI16 = HI16.addImm(Hi16);
-			if(!(Imm==0))
+			//if(!(Imm==0))
 				ADDIrlc = ADDIrlc.addImm(Lo16);
 		} else {
-			//outs()<<"MO.getGlobal()\n";
+			outs()<<"MO.getGlobal()\n";
 			const GlobalValue *GV = MO.getGlobal();
 			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
 			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);

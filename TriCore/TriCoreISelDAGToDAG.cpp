@@ -14,6 +14,7 @@
 #include "TriCore.h"
 #include "TriCoreTargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -315,13 +316,73 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 }
 
 SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
+	 // Make sure the immediate size is supported.
+	  ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
+	  uint64_t ImmVal = ConstVal->getZExtValue();
+	  int64_t ImmSVal = ConstVal->getSExtValue();
+	  uint64_t SupportedMask = 0xfffffffff;
 
-	ConstantSDNode *CN = cast<ConstantSDNode>(N);
-	outs() <<"getSExtValue: " << CN->getSExtValue() << "\n";
-	outs() <<"No operands: " <<CN->getNumOperands() <<"\n";
+	  outs() << "Zero Extend Value: " << ConstVal->getZExtValue() << "\n";
+	  outs() << "Sign Extend Value: " << ConstVal->getSExtValue() << "\n";
 
-	return N;
+	  if ( isUIntN(32, ImmVal) == false )
+	  	return SelectCode(N);
+	  if ((ImmVal & SupportedMask) != ImmVal) {
+	  	outs() <<" Immediate size not supported!\n";
+	    return SelectCode(N);
+	  }
 
+	  // Select the low part of the immediate move.
+		uint64_t LoMask = 0xffff;
+		uint64_t HiMask = 0xffff0000;
+		uint64_t ImmLo = (ImmVal & LoMask);
+		int64_t ImmSLo = (ImmSVal & LoMask) - 65536;
+
+		outs() << "SLo: " << ImmSLo << "\n";
+		uint64_t ImmHi = (ImmVal & HiMask);
+		SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
+		SDValue ConstSImm = CurDAG->getTargetConstant(ImmSVal, N, MVT::i32);
+		SDValue ConstEImm = CurDAG->getTargetConstant(ImmVal, N, MVT::i32);
+		SDValue ConstHi;
+
+		int64_t ImmLo_ext64 = (int16_t)ImmLo;
+		int64_t hiShift = (ImmSVal - ImmLo_ext64) >> 16;
+
+		if (hiShift < 0)
+			hiShift = 65536 + hiShift;
+
+		ConstHi = CurDAG->getTargetConstant(hiShift, N, MVT::i32);
+
+		MachineSDNode *Move;
+
+	  if ((ImmHi == 0) && ImmLo) {
+	  	if (ImmSVal >=0 && ImmSVal < 32768)
+	  	  return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstEImm);
+	  	else if(ImmSVal >=32768 && ImmSVal < 65536)
+	  		return CurDAG->getMachineNode(TriCore::MOVUrlc, N, MVT::i32, ConstEImm);
+
+	  }
+	  else if(ImmHi && (ImmLo == 0))
+	  	Move = CurDAG->getMachineNode(TriCore::MOVHrlc, N, MVT::i32, ConstHi);
+	  else {
+
+	  	Move = CurDAG->getMachineNode(TriCore::MOVHrlc, N, MVT::i32, ConstHi);
+
+	  	if ( (ImmSVal >= -32768) && (ImmSVal < 0))
+	  			return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstSImm);
+
+  		if( (ImmSLo >= -8 && ImmSLo < 8 ) || ImmLo < 8)
+  			Move = CurDAG->getMachineNode(TriCore::ADDsrc, N, MVT::i32,
+		  																			SDValue(Move,0), ConstLo);
+  		else if(ImmLo >=8 && ImmLo < 256)
+  			Move = CurDAG->getMachineNode(TriCore::ADDrc, N, MVT::i32,
+ 																		  SDValue(Move,0), ConstLo);
+  		else
+  			Move = CurDAG->getMachineNode(TriCore::ADDIrlc, N, MVT::i32,
+  			  																		SDValue(Move,0), ConstLo);
+	    }
+
+	  return Move;
 }
 
 SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
@@ -333,8 +394,23 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	DEBUG(N->dump(CurDAG));
 	DEBUG(errs() << "\n");
 	switch (N->getOpcode()) {
-//	case ISD::Constant:
-//		return SelectConstant(N);
+	case ISD::Constant:
+		return SelectConstant(N);
+	case ISD::ADD: {
+		outs().changeColor(raw_ostream::YELLOW,1) <<"ADD\n";
+		outs().changeColor(raw_ostream::WHITE,0);
+		break;
+	}
+	case ISD::ADDC: {
+		outs().changeColor(raw_ostream::YELLOW,1) <<"ADDC\n";
+		outs().changeColor(raw_ostream::WHITE,0);
+		break;
+	}
+	case ISD::ADDE: {
+		outs().changeColor(raw_ostream::YELLOW,1) <<"ADDE\n";
+		outs().changeColor(raw_ostream::WHITE,0);
+		break;
+	}
 	case ISD::FrameIndex: {
 		int FI = cast<FrameIndexSDNode>(N)->getIndex();
 		SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
@@ -356,37 +432,34 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 				op1, zeroConst);
 	}
 	case ISD::STORE: {
-		StoreSDNode *SD = cast<StoreSDNode>(N);
-		outs()<< "getSizeInBits: " << SD->getMemoryVT().getSizeInBits() << "\n";
-		outs()<< "getAlignment: " << SD->getAlignment() << "\n";
 		ptyType = false;
 		ptyType = (N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR) ?
 				true : false;
 		break;
 	}
-	case ISD::LOAD:{
-		LoadSDNode *LD = cast<LoadSDNode>(N);
-		LD->dump();
-		outs()<<"LD getAlignment: " << LD->getAlignment() << "\n";
-		outs()<<"LD getOpcode: " << LD->getOpcode() << "\n";
-		outs()<<"LD getNumOp: " << LD->getNumOperands() << "\n";
-		outs()<<"LD getExtensionType: " << (int)LD->getExtensionType() << "\n";
-		outs()<<"LD getEVTString: " << LD->getMemoryVT().getEVTString() << "\n";
-		outs()<<"LD getOriginalAlignment: " << LD->getOriginalAlignment() << "\n";
-		outs()<<"LD HasDebugValue: " << LD->getHasDebugValue() << "\n";
-//		LD->getOperand(0).dump();
-//		LD->getOperand(1).dump();
-//		LD->getOperand(2).dump();
-		SDValue chain =  LD->getChain();
-		chain.dump();
-		//N->dump();
-		break;
-	}
-	case ISD::SEXTLOAD: {
-//		outs()<<"Signextend\n";
-//		outs()<<"LD getNumOp: " << N->getNumOperands() << "\n";
-		break;
-	}
+//	case ISD::LOAD:{
+//		LoadSDNode *LD = cast<LoadSDNode>(N);
+//		LD->dump();
+//		outs()<<"LD getAlignment: " << LD->getAlignment() << "\n";
+//		outs()<<"LD getOpcode: " << LD->getOpcode() << "\n";
+//		outs()<<"LD getNumOp: " << LD->getNumOperands() << "\n";
+//		outs()<<"LD getExtensionType: " << (int)LD->getExtensionType() << "\n";
+//		outs()<<"LD getEVTString: " << LD->getMemoryVT().getEVTString() << "\n";
+//		outs()<<"LD getOriginalAlignment: " << LD->getOriginalAlignment() << "\n";
+//		outs()<<"LD HasDebugValue: " << LD->getHasDebugValue() << "\n";
+////		LD->getOperand(0).dump();
+////		LD->getOperand(1).dump();
+////		LD->getOperand(2).dump();
+//		SDValue chain =  LD->getChain();
+//		chain.dump();
+//		//N->dump();
+//		break;
+//	}
+//	case ISD::SEXTLOAD: {
+////		outs()<<"Signextend\n";
+////		outs()<<"LD getNumOp: " << N->getNumOperands() << "\n";
+//		break;
+//	}
 }
 
 		SDNode *ResNode = SelectCode(N);

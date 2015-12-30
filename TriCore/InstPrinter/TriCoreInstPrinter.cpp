@@ -129,7 +129,9 @@ void TriCoreInstPrinter::printAddrModeMemSrc(const MCInst *MI, unsigned OpNum,
 
 void TriCoreInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
                                   raw_ostream &O) {
-  const MCOperand &Op = MI->getOperand(OpNo);
+
+	const MCOperand &Op = MI->getOperand(OpNo);
+
   if (Op.isReg()) {
     printRegName(O, Op.getReg());
     return;

@@ -42,7 +42,6 @@ def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
 def load_sym : SDNode<"TriCoreISD::LOAD_SYM", SDTIntUnaryOp>;
 
 def movei32 : SDNode<"TriCoreISD::MOVEi32", MoveImm32Ty>;
-def movei64 : SDNode<"TriCoreISD::MOVEi64", MoveImm64Ty>;
 
 def tricore_call
     : SDNode<"TriCoreISD::CALL", SDT_TriCoreCall,

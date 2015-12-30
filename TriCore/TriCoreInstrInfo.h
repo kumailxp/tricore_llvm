@@ -81,7 +81,9 @@ public:
                                     const TargetRegisterInfo *TRI) const
       override;
 
-  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const
+  void splitRegs(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const;
+
+   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const
      override;
 
 //  TriCoreCC::CondCodes getCondFromBranchOpc(unsigned Opc) const;

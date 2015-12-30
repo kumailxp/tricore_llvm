@@ -52,8 +52,6 @@ def cc : Operand<i32> {
 //def isPointer_1  : PatLeaf<(imm), [{ return N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR; }]>;
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
-//def isInteger : Predicate<"isInteger() == true">;
-//def isnotInteger : Predicate<"N->getOperand(1)">;
 
 // TriCore Condition Codes
 def TriCore_COND_EQ : PatLeaf<(i32 0)>;
@@ -72,25 +70,68 @@ def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
 	let Constraints = "$s1 = $d";
 }
 
-let isCommutable = 1 in {
-	def ADDrr : RR<0x0B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-						"add $d, $s1, $s2",
-							 [(set DataRegs:$d, (add DataRegs:$s1, DataRegs:$s2) )]>;
-	
-	def ADDrc : RC<0x8B, 0, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const9)
-								 ,"add $d, $s1, $const9",
-								 [(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9) )]>;
-	
-	def ADDIrlc : RLC<0x1B, (outs DataRegs:$d), (ins DataRegs:$s1, i32imm:$const16)
-								 ,"addi $d, $s1, $const16",
-								 [(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16) )]>;
-	
-	def ADDArc : RC<0x8B, 0x00, (outs AddrRegs:$d), (ins AddrRegs:$s1, i32imm:$const9)
-								 ,"addi $d, $s1, $const9",
-								 [(set AddrRegs:$d, (add AddrRegs:$s1, immSExt9:$const9) )]>;
+//let isCommutable = 1 in {
+	def ADDrr : RR<0x0B, 0x00, (outs DataRegs:$d), 
+							(ins DataRegs:$s1, DataRegs:$s2),
+							"add $d, $s1, $s2",
+							[(set i32:$d, (add i32:$s1, i32:$s2))]>;
+		
+	def ADDArr : RR<0x01, 0x01, (outs AddrRegs:$d),
+							 (ins AddrRegs:$s1, AddrRegs:$s2),
+							 "add.a $d, $s1, $s2",
+							 [(set AddrRegs:$d, (add AddrRegs:$s1, AddrRegs:$s2))]>;
+//} // isCommutable
 
+def ADDrc : RC<0x8B, 0x00, (outs DataRegs:$d),
+							(ins DataRegs:$s1, i32imm:$const9),
+							"add $d, $s1, $const9",
+							[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9))]>;
+	
+def ADDIrlc : RLC<0x1B, (outs DataRegs:$d),
+							(ins DataRegs:$s1, s16imm:$const16),
+							"addi $d, $s1, $const16",
+							[(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16))]>;
+
+let Defs = [PSW],	Uses = [PSW] in
+{
+def ADDCrr : RR<0x0B, 0x05, (outs DataRegs:$d), 
+							 (ins DataRegs:$s1, DataRegs:$s2),
+							 "addc $d, $s1, $s2",
+							 [(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2)),
+							 (implicit PSW)]>;
+
+def ADDXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
+							 (ins DataRegs:$s1, DataRegs:$s2),
+							 "addx $d, $s1, $s2",
+							 [(set DataRegs:$d, (adde DataRegs:$s1, DataRegs:$s2)),
+							 (implicit PSW)]>;
+
+def ADDCrc : RR<0x8B, 0x05, (outs DataRegs:$d), 
+									 (ins DataRegs:$s1, s9imm:$const9),
+									 "addc $d, $s1, $const9",
+									 [(set DataRegs:$d, (addc DataRegs:$s1, immSExt9:$const9)),
+									 (implicit PSW)]>;
+
+def ADDXrc : RC<0x0B, 0x04, (outs DataRegs:$d), 
+									 (ins DataRegs:$s1, s9imm:$const9),
+									 "addx $d, $s1, $const9",
+									 [(set DataRegs:$d, (adde DataRegs:$s1, immSExt9:$const9)),
+									 (implicit PSW)]>;
+} // Defs, Uses
+	
+let Defs = [PSW] in {
+def ADDi64 : Pseudo<(outs ExtRegs:$d),
+									  (ins ExtRegs:$s1, ExtRegs:$s2),
+									  "ADDi64 Pseudo",
+									  [(set ExtRegs:$d, (add ExtRegs:$s1, ExtRegs:$s2)),
+										(implicit PSW)]>;
+
+def ADDi64C : Pseudo<(outs ExtRegs:$d),
+									  (ins ExtRegs:$s1, i64imm:$const64),
+									  "ADDi64 Pseudo",
+									  [(set ExtRegs:$d, (add ExtRegs:$s1, imm:$const64)),
+										(implicit PSW)]>;
 }
-
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
 	        "sub.a %a10, $imm", []> 
 {
@@ -225,11 +266,10 @@ def MOVrlc  : MOV_CONST<0x3B,"mov", (ins s16imm:$const16) ,
 def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
               [(set DataRegs:$d, immZExt16:$const16)]>;
 
-let Constraints = "$fakesrc = $d" in
-def MOVHrlc : MOV_CONST<0x7B, "movh", (ins DataRegs:$fakesrc, i32imm:$const16), []>;
+def MOVHrlc : MOV_CONST<0x7B, "movh", (ins i32imm:$const16), []>;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1 in 
-def MOVi32 : TriCorePseudoInst<(outs DataRegs:$d), (ins i32imm:$const32), "MOV32 Pseudo",
+def MOVi32 : Pseudo<(outs DataRegs:$d), (ins i32imm:$const32), "MOV32 Pseudo",
                      [(set DataRegs:$d, (movei32 imm:$const32))]>;
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
@@ -425,11 +465,11 @@ let isBarrier = 1 in {
 		
 
 let usesCustomInserter = 1 in {
-  def Select8  : TriCorePseudoInst<(outs DataRegs:$dst),
-  		                             (ins DataRegs:$src, DataRegs:$src2, i32imm:$cc, DataRegs:$src1 ),
-																	 "# Select8 PSEUDO",
-																	 [(set DataRegs:$dst,
-                                   (TriCoreselectcc DataRegs:$src, DataRegs:$src2, imm:$cc, DataRegs:$src1))]>;
+  def Select8  : Pseudo<(outs DataRegs:$dst),
+											  (ins DataRegs:$src, DataRegs:$src2, i32imm:$cc, DataRegs:$src1 ),
+											  "# Select8 PSEUDO",
+											 [(set DataRegs:$dst,
+											 (TriCoreselectcc DataRegs:$src, DataRegs:$src2, imm:$cc, DataRegs:$src1))]>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -437,10 +477,10 @@ let usesCustomInserter = 1 in {
 //===----------------------------------------------------------------------===//
 
 let Defs = [A10], Uses = [A10] in {
-def ADJCALLSTACKDOWN : TriCorePseudoInst<(outs), (ins i32imm:$amt),
+def ADJCALLSTACKDOWN : Pseudo<(outs), (ins i32imm:$amt),
                                     "# ADJCALLSTACKDOWN $amt",
                                     [(callseq_start timm:$amt)]>;
-def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+def ADJCALLSTACKUP   : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                                     "# ADJCALLSTACKUP $amt1",
                                     [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
@@ -450,12 +490,13 @@ def ADJCALLSTACKUP   : TriCorePseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2
 //===----------------------------------------------------------------------===//
 def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
           (BL tglobaladdr:$dst)>;
-def : Pat<(i32 immSExt16:$src),
-					(MOVrlc immSExt16:$src)>;
-def : Pat<(i32 immZExt16:$src),
-					(MOVUrlc immZExt16:$src)>;
-def : Pat<(i32 imm:$src),
-					(MOVi32 imm:$src)>;
+
+//def : Pat<(i32 immSExt16:$src),
+//					(MOVrlc immSExt16:$src)>;
+//def : Pat<(i32 immZExt16:$src),
+//					(MOVUrlc immZExt16:$src)>;
+//def : Pat<(i32 imm:$src),
+//					(MOVi32 imm:$src)>;
 
 //def : Pat<(i64 imm:$src),
 //          (INSERT_SUBREG (i64 (IMPLICIT_DEF)), (MOVi64 imm:$src), subreg_even)>;
@@ -480,13 +521,20 @@ def : Pat<(i64 imm:$src),
           		           (MOVi32( LO32 imm:$src)), subreg_even)),
           		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
 
-//def : Pat<(i64 imm:$imm), 
-//          (INSERT_SUBREG (i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
-//          								(MOVi64 imm:$src), sub_even)), 
-//                           (MOVi64 imm:$src), sub_odd)>;
+def imm64_XFORM : SDNodeXForm<imm,
+[{
+  return CurDAG->getTargetConstant(N->getAPIntValue(), SDLoc(N), MVT::i32);
+}]>;
 
-//def : Pat<(i64 imm:$src),
-//					(MOVi64 imm:$src)>;
+def imm0_64 : PatLeaf<(imm),
+[{
+  int64_t val = N->getSExtValue();
+  return val > 0xff;
+}], imm64_XFORM>;
+
+
+//def : Pat<(add ExtRegs:$d, i32imm:$src),
+//					(ADDXrc (i32 (EXTRACT_SUBREG ExtRegs:$d, subreg_even)), (imm64_XFORM imm:$src))>;
 
 def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
 		 (MOVi32 tglobaladdr:$dst)>;

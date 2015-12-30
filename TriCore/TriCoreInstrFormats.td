@@ -283,7 +283,7 @@ class BO<bits<8> op1, bits<6> op2, dag outs, dag ins, string asmstr,
 }
 
 // TriCore pseudo instructions format
-class TriCorePseudoInst<dag outs, dag ins, string asmstr, list<dag> pattern>
+class Pseudo<dag outs, dag ins, string asmstr, list<dag> pattern>
     : InstTriCore<outs, ins, asmstr, pattern> {
   let isPseudo = 1;
 }
