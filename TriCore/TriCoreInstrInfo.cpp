@@ -448,7 +448,8 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	{
 	default:
 		return false;
-	case TriCore::ADDi64: {
+	case TriCore::ADDi64:
+	case TriCore::SUBi64:{
 
 		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
 		          Src1LoReg, Src1HiReg, DstLoReg, DstHiReg;
@@ -466,8 +467,15 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		splitRegs(Src1Reg, Src1LoReg, Src1HiReg);
 		splitRegs(DstReg, DstLoReg, DstHiReg);
 
-		OpLo = TriCore::ADDXrr;
-		OpHi = TriCore::ADDCrr;
+		if (MI->getOpcode() == TriCore::ADDi64) {
+			OpLo = TriCore::ADDXrr;
+			OpHi = TriCore::ADDCrr;
+		}
+		else {
+			OpLo = TriCore::SUBXrr;
+			OpHi = TriCore::SUBCrr;
+		}
+
 
 		auto MIBLO =
 		      BuildMI(MBB, MI, DL, get(OpLo))
@@ -494,7 +502,7 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	}
 	case TriCore::ADDi64C: {
 		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
-		          DstLoReg, DstHiReg;
+		DstLoReg, DstHiReg;
 
 		unsigned DstReg = MI->getOperand(0).getReg();
 		unsigned Src0Reg = MI->getOperand(1).getReg();
@@ -504,8 +512,8 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		bool ImpIsDead = MI->getOperand(3).isDead();
 
 		int64_t immVal = MI->getOperand(2).getImm();
-		int32_t immLo = immVal & 0xffff;
-		int32_t immHi = (immVal>>32) & 0xffff;
+		int32_t lowByte = immVal & 0xffffffff;
+		int32_t highByte = (immVal>>32) & 0xffffffff;
 
 		splitRegs(Src0Reg, Src0LoReg, Src0HiReg);
 		splitRegs(DstReg, DstLoReg, DstHiReg);
@@ -513,31 +521,26 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		OpLo = TriCore::ADDXrc;
 		OpHi = TriCore::ADDCrc;
 
-		if (immLo <= 0xff) {
-			auto MIBLO =
-			      BuildMI(MBB, MI, DL, get(OpLo))
-			          .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
-			          .addReg(Src0LoReg, getKillRegState(Src0IsKill))
-								.addImm(immLo);
+		auto MIBLO =
+				BuildMI(MBB, MI, DL, get(OpLo))
+				.addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+				.addReg(Src0LoReg, getKillRegState(Src0IsKill))
+				.addImm(lowByte);
 
-			//PSW is implicitly killed
-			MIBLO->getOperand(4).setIsKill();
-		}
-		else {
-					}
-		if (immHi <= 0xff) {
-			auto MIBHI =
-						BuildMI(MBB, MI, DL, get(OpHi))
-								.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
-								.addReg(Src0HiReg, getKillRegState(Src0IsKill))
-								.addImm(immHi);
+		//PSW is implicitly killed
+		MIBLO->getOperand(4).setIsKill();
 
-			if (ImpIsDead)
-					MIBHI->getOperand(3).setIsDead();
+		auto MIBHI =
+				BuildMI(MBB, MI, DL, get(OpHi))
+				.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+				.addReg(Src0HiReg, getKillRegState(Src0IsKill))
+				.addImm(highByte);
 
-			// PSW is always implicitly killed
-			MIBHI->getOperand(4).setIsKill();
-		}
+		if (ImpIsDead)
+			MIBHI->getOperand(3).setIsDead();
+
+		// PSW is always implicitly killed
+		MIBHI->getOperand(4).setIsKill();
 
 		MBB.erase(MI);
 		return true;
@@ -549,23 +552,48 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		const bool DstIsDead = MI->getOperand(0).isDead();
 
 		const MachineOperand &MO = MI->getOperand(1);
-		auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
-                    						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead));
-
-		auto ADDIrlc = BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
-                        						.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
-																		.addReg(DstReg);
 		if (MO.isImm()) {
+
+			int64_t ImmVal = MO.getImm();
+
+			// Select the low part of the immediate move.
+			int64_t LoMask = 0xffff;
+			int64_t ImmLo = (ImmVal & LoMask);
+			int64_t ImmLo_ext64 = (int16_t)ImmLo;
+			int64_t hiShift = (ImmVal - ImmLo_ext64) >> 16;
+
+			if (hiShift < 0)
+					hiShift = 65536 + hiShift;
+
 			const unsigned Imm = MO.getImm();
 			const unsigned Lo16 = Imm & 0xffff;
-			const unsigned Hi16 = (Imm >> 16) & 0xffff;
-			HI16 = HI16.addImm(Hi16);
-			//if(!(Imm==0))
-				ADDIrlc = ADDIrlc.addImm(Lo16);
-		} else {
+			//const unsigned Hi16 = (Imm >> 16) & 0xffff;
+			//HI16 = HI16.addImm(hiShift);
+
+			if((hiShift == 0) && (Lo16 < 65536))
+				BuildMI(MBB, MI, DL, get(TriCore::MOVrlc))
+				     .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+						 .addImm(Lo16);
+			else if(!(hiShift == 0))
+			  BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
+				      .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+							.addImm(hiShift);
+
+			if ((hiShift != 0) && Lo16)
+				BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
+					 .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+					 .addReg(DstReg)
+					 .addImm(Lo16);
+		}
+		else {
 			outs()<<"MO.getGlobal()\n";
 			const GlobalValue *GV = MO.getGlobal();
+			auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
+								.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead));
 			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
+			auto ADDIrlc = BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
+					           .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
+										 .addReg(DstReg);
 			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
 		}
 

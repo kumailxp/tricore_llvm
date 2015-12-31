@@ -96,6 +96,7 @@ public:
 
 	SDNode *Select(SDNode *N);
 	SDNode *SelectConstant(SDNode *N);
+	SDNode *createDRegPairNode(SDValue V0, SDValue V1);
 
 	bool SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset);
 	bool SelectAddr_new(SDValue N, SDValue &Base, SDValue &Disp);
@@ -315,6 +316,17 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 	return true;
 }
 
+/// \brief Form a Extended register from a pair of Data regs.
+SDNode *TriCoreDAGToDAGISel::createDRegPairNode(SDValue V0, SDValue V1) {
+  SDLoc dl(V0.getNode());
+  SDValue RegClass =
+    CurDAG->getTargetConstant(TriCore::ExtRegsRegClassID, dl, MVT::i64);
+  SDValue SubReg0 = CurDAG->getTargetConstant(TriCore::subreg_even, dl, MVT::i32);
+  SDValue SubReg1 = CurDAG->getTargetConstant(TriCore::subreg_odd, dl, MVT::i32);
+  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1 };
+  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, MVT::i64, Ops);
+}
+
 SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	 // Make sure the immediate size is supported.
 	  ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
@@ -322,11 +334,19 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	  int64_t ImmSVal = ConstVal->getSExtValue();
 	  uint64_t SupportedMask = 0xfffffffff;
 
+
+	  outs() << "getValueType: " << N->getValueType(0).getEVTString() << "\n";
+		outs() << "getNumValues: " << ConstVal->getNumValues() << "\n";
+		outs() << "hasAnyUseOfValue: " << ConstVal->hasAnyUseOfValue(0) << "\n";
+	  outs() << "Op Type: " << ConstVal->getValueType(0).getEVTString() << "\n";
 	  outs() << "Zero Extend Value: " << ConstVal->getZExtValue() << "\n";
 	  outs() << "Sign Extend Value: " << ConstVal->getSExtValue() << "\n";
 
-	  if ( isUIntN(32, ImmVal) == false )
+
+	  if ( ConstVal->getValueType(0) == MVT::i64)
 	  	return SelectCode(N);
+
+
 	  if ((ImmVal & SupportedMask) != ImmVal) {
 	  	outs() <<" Immediate size not supported!\n";
 	    return SelectCode(N);
@@ -396,8 +416,10 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	switch (N->getOpcode()) {
 	case ISD::Constant:
 		return SelectConstant(N);
-	case ISD::ADD: {
+	case ISD::ADD:
+	case TriCoreISD::ADD64:{
 		outs().changeColor(raw_ostream::YELLOW,1) <<"ADD\n";
+		N->dump();
 		outs().changeColor(raw_ostream::WHITE,0);
 		break;
 	}

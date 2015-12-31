@@ -50,7 +50,9 @@ enum NodeType {
 	SH,
 	SUB,
 	// Loads ternary operators
-	SELECT_CC
+	SELECT_CC,
+	// 64 bit constant add
+	ADD64
 };
 }
 

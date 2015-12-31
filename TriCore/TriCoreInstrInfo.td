@@ -14,6 +14,10 @@
 include "TriCoreInstrFormats.td"
 include "TriCoreOperators.td"
 
+
+//def SDT_TriCoreIntBinOp : SDTypeProfile<1, 2, [     // 64bit constant add
+//  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisInt<0>]>;
+
 def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
 																									 SDTCisVT<3, i32>]>;
@@ -39,6 +43,7 @@ def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
+//def TriCoreadd : SDNode<"TriCoreISD::ADD64", SDT_TriCoreIntBinOp, [SDNPCommutative, SDNPAssociative]>;
 
 def jmptarget : Operand<OtherVT> {
   let PrintMethod = "printPCRelImmOperand";
@@ -117,20 +122,53 @@ def ADDXrc : RC<0x0B, 0x04, (outs DataRegs:$d),
 									 "addx $d, $s1, $const9",
 									 [(set DataRegs:$d, (adde DataRegs:$s1, immSExt9:$const9)),
 									 (implicit PSW)]>;
+
+def SUBCrr : RR<0x0B, 0x0D, (outs DataRegs:$d), 
+							 (ins DataRegs:$s1, DataRegs:$s2),
+							 "subc $d, $s1, $s2",
+							 [(set DataRegs:$d, (subc DataRegs:$s1, DataRegs:$s2)),
+							 (implicit PSW)]>;
+
+def SUBXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
+							 (ins DataRegs:$s1, DataRegs:$s2),
+							 "subx $d, $s1, $s2",
+							 [(set DataRegs:$d, (sube DataRegs:$s1, DataRegs:$s2)),
+							 (implicit PSW)]>;
+
 } // Defs, Uses
+
+def imml_32_h_32 : Operand<i64>, PatLeaf<(imm), [{
 	
+	int64_t val = N->getSExtValue();
+	int32_t lByte = val & 0xffffffff;
+	int32_t hByte = (val >> 32) & 0xffffffff;
+	
+	return (lByte >=-256 && lByte < 256 && hByte >=-256 && hByte < 256 )
+			
+}]>;
+
+
+
+
 let Defs = [PSW] in {
+def ADDi64C : Pseudo<(outs ExtRegs:$d),
+									  (ins ExtRegs:$s1, imml_32_h_32:$const64),
+									  "ADDi64C Pseudo",
+									  [(set ExtRegs:$d, (add ExtRegs:$s1, imml_32_h_32:$const64)),
+										(implicit PSW)]>;
+
 def ADDi64 : Pseudo<(outs ExtRegs:$d),
 									  (ins ExtRegs:$s1, ExtRegs:$s2),
 									  "ADDi64 Pseudo",
 									  [(set ExtRegs:$d, (add ExtRegs:$s1, ExtRegs:$s2)),
 										(implicit PSW)]>;
 
-def ADDi64C : Pseudo<(outs ExtRegs:$d),
-									  (ins ExtRegs:$s1, i64imm:$const64),
-									  "ADDi64 Pseudo",
-									  [(set ExtRegs:$d, (add ExtRegs:$s1, imm:$const64)),
+def SUBi64 : Pseudo<(outs ExtRegs:$d),
+									  (ins ExtRegs:$s1, ExtRegs:$s2),
+									  "SUBi64 Pseudo",
+									  [(set ExtRegs:$d, (sub ExtRegs:$s1, ExtRegs:$s2)),
 										(implicit PSW)]>;
+
 }
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
 	        "sub.a %a10, $imm", []> 
