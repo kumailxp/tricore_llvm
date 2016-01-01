@@ -158,6 +158,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
   // FIXME: Handle bittests someday
   assert(!LHS.getValueType().isFloatingPoint() && "We don't handle FP yet");
 
+  EVT VT = LHS.getValueType();
   // FIXME: Handle jump negative someday
   SDValue TargetCC;
   TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
@@ -237,7 +238,12 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
     break;
   }
   TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
-  return DAG.getNode(TriCoreISD::CMP, dl, MVT::i32, LHS, RHS, TargetCC);
+  SDVTList VTs = DAG.getVTList(MVT::i32, MVT::Glue);
+  SDValue Ops[] = {LHS, RHS, TargetCC};
+//  return DAG.getNode(TriCoreISD::CMP, dl, MVT::i32, LHS, RHS, TargetCC);
+
+  if (VT == MVT::i32)
+  	return DAG.getNode(TriCoreISD::CMP, dl, VTs, Ops);
 }
 
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
@@ -251,8 +257,10 @@ SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue tricoreCC;
   SDValue Flag = EmitCMP(LHS, RHS, CC, dl, DAG, tricoreCC);
 
+  //Flag.getValue(1).dump();
+
   return DAG.getNode(TriCoreISD::BR_CC, dl, Op.getValueType(),
-                       Chain, Dest, Flag, tricoreCC);
+                       Chain, Dest, Flag.getValue(0), tricoreCC, Flag.getValue(1));
 
 }
 

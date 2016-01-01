@@ -38,8 +38,8 @@ def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
                                                   SDTCisVT<2, i32>]>;
 
-def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain]>;
-def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, []>;
+def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain, SDNPInGlue]>;
+def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
@@ -143,7 +143,7 @@ def imml_32_h_32 : Operand<i64>, PatLeaf<(imm), [{
 	int32_t lByte = val & 0xffffffff;
 	int32_t hByte = (val >> 32) & 0xffffffff;
 	
-	return (lByte >=-256 && lByte < 256 && hByte >=-256 && hByte < 256 )
+	return (lByte >=-256 && lByte < 256 && hByte >=-256 && hByte < 256);
 			
 }]>;
 

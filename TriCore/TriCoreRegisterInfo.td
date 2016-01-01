@@ -83,10 +83,12 @@ def DataRegs : RegisterClass<"TriCore", [i32], 32, (add
 		// Implict Data
 		D15,
 		// Others
-		D0, D1, D2, D3,
+		D2, D3,
 		D4, D5, D6, D7,
 		D8, D9, D10, D11,
-		D12, D13, D14)>;
+		D12, D13, D14,
+		// Others
+		D0, D1)>;
 
 def AddrRegs : RegisterClass<"TriCore", [i32], 32, (add
 		// Global Address

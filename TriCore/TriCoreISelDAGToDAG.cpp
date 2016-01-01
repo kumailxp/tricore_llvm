@@ -334,13 +334,12 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	  int64_t ImmSVal = ConstVal->getSExtValue();
 	  uint64_t SupportedMask = 0xfffffffff;
 
-
-	  outs() << "getValueType: " << N->getValueType(0).getEVTString() << "\n";
-		outs() << "getNumValues: " << ConstVal->getNumValues() << "\n";
-		outs() << "hasAnyUseOfValue: " << ConstVal->hasAnyUseOfValue(0) << "\n";
-	  outs() << "Op Type: " << ConstVal->getValueType(0).getEVTString() << "\n";
-	  outs() << "Zero Extend Value: " << ConstVal->getZExtValue() << "\n";
-	  outs() << "Sign Extend Value: " << ConstVal->getSExtValue() << "\n";
+//	  outs() << "getValueType: " << N->getValueType(0).getEVTString() << "\n";
+//		outs() << "getNumValues: " << ConstVal->getNumValues() << "\n";
+//		outs() << "hasAnyUseOfValue: " << ConstVal->hasAnyUseOfValue(0) << "\n";
+//	  outs() << "Op Type: " << ConstVal->getValueType(0).getEVTString() << "\n";
+//	  outs() << "Zero Extend Value: " << ConstVal->getZExtValue() << "\n";
+//	  outs() << "Sign Extend Value: " << ConstVal->getSExtValue() << "\n";
 
 
 	  if ( ConstVal->getValueType(0) == MVT::i64)
@@ -348,7 +347,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 
 
 	  if ((ImmVal & SupportedMask) != ImmVal) {
-	  	outs() <<" Immediate size not supported!\n";
+//	  	outs() <<" Immediate size not supported!\n";
 	    return SelectCode(N);
 	  }
 
@@ -358,7 +357,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 		uint64_t ImmLo = (ImmVal & LoMask);
 		int64_t ImmSLo = (ImmSVal & LoMask) - 65536;
 
-		outs() << "SLo: " << ImmSLo << "\n";
+//		outs() << "SLo: " << ImmSLo << "\n";
 		uint64_t ImmHi = (ImmVal & HiMask);
 		SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
 		SDValue ConstSImm = CurDAG->getTargetConstant(ImmSVal, N, MVT::i32);
