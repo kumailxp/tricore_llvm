@@ -30,6 +30,12 @@ namespace TriCoreCC {
 		COND_LT, // Less than
 		COND_INVALID
 	};
+
+	enum LogicCodes {
+			LOGIC_AND, // AND
+			LOGIC_OR,  // OR
+			LOGIC_INVALID
+		};
 }
 
 class TriCoreInstrInfo : public TriCoreGenInstrInfo {

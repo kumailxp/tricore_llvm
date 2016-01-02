@@ -78,7 +78,8 @@ def s32imm     : Operand<i32> { let PrintMethod = "printSExtImm<32>"; }
 def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
 def u4imm      : Operand<i32> { let PrintMethod = "printZExtImm<4>";  }
 def u9imm      : Operand<i32> { let PrintMethod = "printZExtImm<9>";  }
-def u16imm      : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
+def u16imm     : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
+def u32imm     : Operand<i32> { let PrintMethod = "printZExtImm<32>";  }
 
 
 //Nodes
@@ -89,8 +90,10 @@ def immSExt24  : PatLeaf<(imm), [{ return isInt<24>(N->getSExtValue()); }]>;
 def immSExt32  : PatLeaf<(imm), [{ return isInt<32>(N->getSExtValue()); }]>;
 
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;
-def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0x0f);}]>;
-def immZExt9 : ImmLeaf<i32, [{return Imm == (Imm & 0x1ff);}]>;
+def immZExt4 : ImmLeaf<i32, [{return Imm == (Imm & 0xf);}]>;
+//def immZExt9 : ImmLeaf<i32, [{return Imm == (Imm & 0x1ff);}]>;
+def immZExt9 : PatLeaf<(imm), [{return isUInt<9>(N->getZExtValue()); }]>;
+def immZExt32 : ImmLeaf<i32, [{return Imm == (Imm & 0xffffffff);}]>;
 def immZExt16 : ImmLeaf<i32, [{return Imm == (Imm & 0xffff);}]>;
 
 //===----------------------------------------------------------------------===//

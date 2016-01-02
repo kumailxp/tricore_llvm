@@ -52,7 +52,9 @@ enum NodeType {
 	// Loads ternary operators
 	SELECT_CC,
 	// 64 bit constant add
-	ADD64
+	ADD64,
+	LOGICCMP,
+	CMP64
 };
 }
 

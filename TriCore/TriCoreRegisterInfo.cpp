@@ -124,9 +124,9 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 	// FIXME: check the size of offset.
 	MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
-  outs() << "getObjectOffset: " << MFI->getObjectOffset(FI) << "\n";
-  outs() << "getStackSize: " << MFI->getStackSize() << "\n";
-  outs() << "ImmOp.getImm(): " << ImmOp.getImm() << "\n";
+//  outs() << "getObjectOffset: " << MFI->getObjectOffset(FI) << "\n";
+//  outs() << "getStackSize: " << MFI->getStackSize() << "\n";
+//  outs() << "ImmOp.getImm(): " << ImmOp.getImm() << "\n";
 	int Offset = MFI->getObjectOffset(FI);
 	//int Offset = MFI->getObjectOffset(FI) + MFI->getStackSize() + ImmOp.getImm();
 	FIOp.ChangeToRegister(BasePtr, false);

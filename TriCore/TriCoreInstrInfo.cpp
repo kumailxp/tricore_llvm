@@ -476,7 +476,6 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			OpHi = TriCore::SUBCrr;
 		}
 
-
 		auto MIBLO =
 		      BuildMI(MBB, MI, DL, get(OpLo))
 		          .addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))

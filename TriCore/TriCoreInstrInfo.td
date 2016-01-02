@@ -18,28 +18,38 @@ include "TriCoreOperators.td"
 //def SDT_TriCoreIntBinOp : SDTypeProfile<1, 2, [     // 64bit constant add
 //  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisInt<0>]>;
 
-def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+def SDT_TriCoreCmp            : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
 																									 SDTCisVT<3, i32>]>;
 
+def SDT_TriCoreLCmp           : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
+																									   SDTCisSameAs<1, 2>,
+																										 SDTCisSameAs<2, 3>,
+																									   SDTCisVT<4, i32>]>;
+
+def SDT_TriCoreCmp64          : SDTypeProfile<1, 2, [SDTCisVT<0, i32>,
+																										 SDTCisVT<1, i64>,
+																										 SDTCisVT<2, i64>]>;
+
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
-                                                  SDTCisVT<1, i32>,
-																									SDTCisVT<2, i32>]>;
+                                                   SDTCisVT<1, i32>,
+																									 SDTCisVT<2, i32>]>;
 
 def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
-                                                  SDTCisSameAs<1, 2>, 
-																									SDTCisVT<3, i32>,
-																									SDTCisVT<4, i32>]>;
-
+                                                   SDTCisSameAs<1, 2>, 
+																		 							 SDTCisVT<3, i32>,
+																									 SDTCisVT<4, i32>]>;
 
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
-                                                  SDTCisPtrTy<0>]>;
+                                                   SDTCisPtrTy<0>]>;
 
 def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
-                                                  SDTCisVT<2, i32>]>;
+                                                   SDTCisVT<2, i32>]>;
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain, SDNPInGlue]>;
 def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
+def TriCorecmp64   : SDNode<"TriCoreISD::CMP64", SDT_TriCoreCmp64, [SDNPOutGlue]>;
+def TriCorelogiccmp: SDNode<"TriCoreISD::LOGICCMP", SDT_TriCoreLCmp, [SDNPInGlue, SDNPOutGlue]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
@@ -63,6 +73,14 @@ def TriCore_COND_EQ : PatLeaf<(i32 0)>;
 def TriCore_COND_NE : PatLeaf<(i32 1)>;
 def TriCore_COND_GE : PatLeaf<(i32 2)>;
 def TriCore_COND_LT : PatLeaf<(i32 3)>;
+// TriCore Logic Codes
+def TriCore_LOGIC_AND_EQ : PatLeaf<(i32 0)>;
+def TriCore_LOGIC_AND_GE : PatLeaf<(i32 2)>;
+def TriCore_LOGIC_AND_LT : PatLeaf<(i32 3)>;
+
+def TriCore_LOGIC_OR_NE :  PatLeaf<(i32 1)>;
+def TriCore_LOGIC_OR_GE :  PatLeaf<(i32 12)>;
+def TriCore_LOGIC_OR_LT :  PatLeaf<(i32 13)>;
 
 
 //===----------------------------------------------------------------------===//
@@ -440,6 +458,131 @@ defm EQ : COMPARE_32<0x10, "eq", TriCore_COND_EQ>;
 defm GE : COMPARE_32<0x14, "ge", TriCore_COND_GE>;
 defm LT : COMPARE_32<0x12, "lt", TriCore_COND_LT>;
 
+
+multiclass LOGIC_COMPARE<bits<7> op_s, bits<7> op_u, 
+									string asmstring,  PatLeaf PF>
+{
+	let Constraints="$d = $fsrc" in {
+		
+		def Urc : RC<0x8B, op_u,
+		(outs DataRegs:$d),
+		(ins DataRegs:$fsrc, DataRegs:$s1, u9imm:$const9),
+		!strconcat(asmstring, ".u $d, $s1, $const9"),
+		[( set DataRegs:$d, 
+				(TriCorelogiccmp DataRegs:$fsrc, DataRegs:$s1, immZExt9:$const9, PF))]>;
+
+		def rc : RC<0x8B, op_s,
+		(outs DataRegs:$d),
+		(ins DataRegs:$fsrc, DataRegs:$s1, s9imm:$const9),
+		!strconcat(asmstring, " $d, $s1, $const9"),
+		[( set DataRegs:$d, 
+				(TriCorelogiccmp DataRegs:$fsrc, DataRegs:$s1, immSExt9:$const9, PF))]>;
+
+	}
+}
+
+//class LC_RR <bits<8> op2, string asmstring, PatLeaf PF> 
+//			:RR<0x0B, op2,
+//			 (outs DataRegs:$d),
+//			 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+//			 !strconcat(asmstring, " $d, $s1, $s2"),
+//			 [(set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+//				 DataRegs:$s1, DataRegs:$s2, PF))]> {
+//	
+//	let Constraints="$d = $fsrc";
+//	
+//}
+//
+//class LC_RC <bits<7> op2, string asmstring, PatLeaf PF> 
+//			:RC<0x8B, op2,
+//				(outs DataRegs:$d),
+//				(ins DataRegs:$fsrc, DataRegs:$s1, s9imm:$const9),
+//				!strconcat(asmstring, " $d, $s1, $const9"),
+//				[( set DataRegs:$d, 
+//				(TriCorelogiccmp DataRegs:$fsrc, DataRegs:$s1, immSExt9:$const9, PF))]>
+//{
+//	
+//	let Constraints="$d = $fsrc";
+//	
+//}
+//
+defm AND_LT : LOGIC_COMPARE<0x22, 0x23, "and.lt", TriCore_LOGIC_AND_LT>;
+defm AND_GE : LOGIC_COMPARE<0x24, 0x25, "and.ge", TriCore_LOGIC_AND_GE>;
+defm OR_LT  : LOGIC_COMPARE<0x29, 0x2A, "or.lt",  TriCore_LOGIC_OR_LT>;
+defm OR_GE  : LOGIC_COMPARE<0x2B, 0x2C, "or.ge",  TriCore_LOGIC_OR_GE>;
+//
+//def AND_GE_Urr : LC_RR<0x25, "and.ge.u", TriCore_LOGIC_AND_GE>;
+//def AND_LT_Urr : LC_RR<0x23, "and.lt.u", TriCore_LOGIC_AND_LT>;
+//def AND_EQrr   : LC_RR<0x20, "and.eq"  , TriCore_LOGIC_AND_EQ>;
+//def AND_EQrc   : LC_RC<0x20, "and.eq"  , TriCore_LOGIC_AND_EQ>;
+//def OR_LTrr 	 : LC_RR<0x29, "or.lt"   , TriCore_LOGIC_OR_LT>;
+//def OR_GErr 	 : LC_RR<0x2B, "or.ge"   , TriCore_LOGIC_OR_GE>;
+//def OR_NErr 	 : LC_RR<0x28, "or.ne"   , TriCore_LOGIC_OR_NE>;
+//def OR_NErc 	 : LC_RC<0x28, "or.ne"   , TriCore_LOGIC_OR_NE>;
+
+let Constraints="$d = $fsrc" in {
+def AND_GE_Urr : RR<0x0B, 0x25,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "and.ge.u $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_AND_GE)))]>;
+
+def AND_LT_Urr : RR<0x0B, 0x23,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "and.lt.u $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_AND_LT)))]>;
+
+def AND_EQrr : RR<0x0B, 0x20,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "and.eq $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_AND_EQ)))]>;
+
+def AND_EQrc : RC<0x8B, 0x20,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, s9imm:$const9),
+								 "and.eq $d, $s1, $const9",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, immSExt9:$const9, (i32 TriCore_LOGIC_AND_EQ)))]>;
+
+def OR_LTrr : RR<0x0B, 0x29,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "or.lt $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_OR_LT)))]>;
+
+def OR_GErr : RR<0x0B, 0x2B,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "or.ge $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_OR_GE)))]>;
+
+def OR_NErr : RR<0x0B, 0x28,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, DataRegs:$s2),
+								 "or.ne $d, $s1, $s2",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, DataRegs:$s2, (i32 TriCore_LOGIC_OR_NE)))]>;
+
+def OR_NErc : RC<0x8B, 0x28,
+								 (outs DataRegs:$d),
+								 (ins DataRegs:$fsrc, DataRegs:$s1, s9imm:$const9),
+								 "or.ne $d, $s1, $const9",
+								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
+										 DataRegs:$s1, immSExt9:$const9, (i32 TriCore_LOGIC_OR_NE)))]>;
+}
+
+
+//def COMPARE64 : Pseudo< (outs DataRegs:$d),
+//										    (ins ExtRegs:$s1, ExtRegs:$s2),
+//										    "COMPARE64 PSEUDO",
+//												[( set DataRegs:$d, (TriCorecmp64 ExtRegs:$s1, ExtRegs:$s2))]>;
 //===----------------------------------------------------------------------===//
 // Branch Instructions
 //===----------------------------------------------------------------------===//
@@ -559,20 +702,15 @@ def : Pat<(i64 imm:$src),
           		           (MOVi32( LO32 imm:$src)), subreg_even)),
           		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
 
-def imm64_XFORM : SDNodeXForm<imm,
-[{
-  return CurDAG->getTargetConstant(N->getAPIntValue(), SDLoc(N), MVT::i32);
-}]>;
+// This extracts the even register from an extended register
+def : Pat<(i32 (trunc ExtRegs:$src)), 
+					(EXTRACT_SUBREG ExtRegs:$src, subreg_even)>;
 
-def imm0_64 : PatLeaf<(imm),
-[{
-  int64_t val = N->getSExtValue();
-  return val > 0xff;
-}], imm64_XFORM>;
+// This extracts the odd register from an extended register
+// odd_reg = (Extended Register >> 32)
+def : Pat<(i32 (trunc (srl ExtRegs:$src, (i32 32)))), 
+					(EXTRACT_SUBREG ExtRegs:$src, subreg_odd)>;
 
-
-//def : Pat<(add ExtRegs:$d, i32imm:$src),
-//					(ADDXrc (i32 (EXTRACT_SUBREG ExtRegs:$d, subreg_even)), (imm64_XFORM imm:$src))>;
 
 def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
 		 (MOVi32 tglobaladdr:$dst)>;

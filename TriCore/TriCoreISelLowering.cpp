@@ -51,7 +51,9 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::CALL:     return "TriCoreISD::CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
   case TriCoreISD::SELECT_CC:return "TriCoreISD::SELECT_CC";
+  case TriCoreISD::LOGICCMP: return "TriCoreISD::LOGICCMP";
   case TriCoreISD::CMP:      return "TriCoreISD::CMP";
+  case TriCoreISD::CMP64:    return "TriCoreISD::CMP64";
   case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
   case TriCoreISD::SH:       return "TriCoreISD::SH";
   case TriCoreISD::ADD64:    return "TriCoreISD::ADD64";
@@ -81,6 +83,7 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   // Nodes that require custom lowering
   setOperationAction(ISD::GlobalAddress, MVT::i32,   Custom);
   setOperationAction(ISD::BR_CC,         MVT::i32,   Custom);
+  setOperationAction(ISD::BR_CC, 				 MVT::i64, 	 Custom);
   setOperationAction(ISD::SELECT_CC,     MVT::i32,   Custom);
   setOperationAction(ISD::SETCC,         MVT::i32,   Custom);
   setOperationAction(ISD::SHL,           MVT::i32,   Custom);
@@ -162,6 +165,9 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
   // FIXME: Handle jump negative someday
   SDValue TargetCC;
   TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
+
+  outs() << "CC: " << (int)CC << "\n";
+
   switch (CC) {
   default: llvm_unreachable("Invalid integer condition!");
   case ISD::SETEQ:
@@ -237,13 +243,75 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
     TCC = TriCoreCC::COND_LT;
     break;
   }
+
+  if (VT == MVT::i64) {
+  	outs() <<"This is a 64 bit compare error!\n";
+
+  	SDValue LHSlo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, LHS,
+  	                               DAG.getIntPtrConstant(0, dl));
+  	SDValue LHShi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, LHS,
+  	  	                               DAG.getIntPtrConstant(1, dl));
+
+  	SDValue RHSlo, RHShi;
+  	if (RHS.getOpcode() != ISD::Constant) {
+  			RHSlo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, RHS,
+																					 DAG.getIntPtrConstant(0, dl));
+				RHShi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, RHS,
+																					 DAG.getIntPtrConstant(1, dl));
+  	}
+  	else
+  	{
+
+  		ConstantSDNode *C = cast<ConstantSDNode>(RHS);
+  		int64_t immVal = C->getSExtValue();
+  		int32_t lowerByte = immVal & 0xffffffff;
+  		int32_t HigherByte = (immVal >> 32);
+
+  		RHSlo = DAG.getConstant(lowerByte, dl, MVT::i32);
+  		RHShi = DAG.getConstant(HigherByte, dl, MVT::i32);
+  		RHShi.dump();
+  	}
+
+  	SDValue TargetEQ;
+  	if (TCC != TriCoreCC::COND_NE)
+  		TargetEQ = DAG.getConstant(TriCoreCC::COND_EQ, dl, MVT::i32);
+  	else
+  		TargetEQ = DAG.getConstant(TCC, dl, MVT::i32);
+
+		SDVTList VTs = DAG.getVTList(MVT::i32, MVT::Glue);
+		SDValue Ops[] = {LHShi, RHShi, TargetEQ};
+		SDValue compareHi = DAG.getNode(TriCoreISD::CMP, dl, VTs, Ops);
+
+		TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
+		SDValue Ops2[] = {compareHi.getValue(0), LHSlo, RHSlo, TargetCC, compareHi.getValue(1)};
+		SDValue compareLo = DAG.getNode(TriCoreISD::LOGICCMP, dl, VTs, Ops2);
+
+		if ( (TCC == TriCoreCC::COND_NE ) || (TCC == TriCoreCC::COND_EQ))
+			return compareLo;
+
+		SDValue SecondCC = DAG.getConstant(TriCoreCC::COND_LT + 10, dl, MVT::i32);
+		if(RHS.getOpcode() == ISD::Constant) {
+			std::swap(LHShi, RHShi);
+			SecondCC = DAG.getConstant(TCC + 10, dl, MVT::i32);
+		}
+
+		SDValue Ops3[] = {compareLo.getValue(0), RHShi, LHShi, SecondCC, compareLo.getValue(1)};
+		SDValue compareCombine = DAG.getNode(TriCoreISD::LOGICCMP, dl, VTs, Ops3);
+
+		return compareCombine;
+  	//LHS2.dump();
+  }
+
+
   TargetCC = DAG.getConstant(TCC, dl, MVT::i32);
   SDVTList VTs = DAG.getVTList(MVT::i32, MVT::Glue);
   SDValue Ops[] = {LHS, RHS, TargetCC};
+
 //  return DAG.getNode(TriCoreISD::CMP, dl, MVT::i32, LHS, RHS, TargetCC);
 
-  if (VT == MVT::i32)
-  	return DAG.getNode(TriCoreISD::CMP, dl, VTs, Ops);
+
+
+  return DAG.getNode(TriCoreISD::CMP, dl, VTs, Ops);
 }
 
 SDValue TriCoreTargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
