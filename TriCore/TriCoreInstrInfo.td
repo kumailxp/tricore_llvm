@@ -14,46 +14,39 @@
 include "TriCoreInstrFormats.td"
 include "TriCoreOperators.td"
 
-
-//def SDT_TriCoreIntBinOp : SDTypeProfile<1, 2, [     // 64bit constant add
-//  SDTCisSameAs<0, 1>, SDTCisSameAs<0, 2>, SDTCisInt<0>]>;
-
-def SDT_TriCoreCmp            : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
+def SDT_TriCoreCmp          : SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
 																									 SDTCisVT<3, i32>]>;
-
-def SDT_TriCoreLCmp           : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
-																									   SDTCisSameAs<1, 2>,
-																										 SDTCisSameAs<2, 3>,
-																									   SDTCisVT<4, i32>]>;
-
-def SDT_TriCoreCmp64          : SDTypeProfile<1, 2, [SDTCisVT<0, i32>,
-																										 SDTCisVT<1, i64>,
-																										 SDTCisVT<2, i64>]>;
-
+def SDT_TriCoreImask        : SDTypeProfile<1, 3, [SDTCisVT<0, i64>,
+																									 SDTCisVT<1, i32>,
+																									 SDTCisVT<2, i32>,
+																									 SDTCisVT<3, i32>]>;
+def SDT_TriCoreLCmp         : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
+																									 SDTCisSameAs<1, 2>,
+																									 SDTCisSameAs<2, 3>,
+																									 SDTCisVT<4, i32>]>;
 def SDT_TriCoreBrCC         : SDTypeProfile<0, 3, [SDTCisVT<0, OtherVT>,
-                                                   SDTCisVT<1, i32>,
+																									 SDTCisVT<1, i32>,
+																									 SDTCisVT<2, i32>]>;
+def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
+																									 SDTCisSameAs<1, 2>, 
+																									 SDTCisVT<3, i32>,
+																									 SDTCisVT<4, i32>]>;
+def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
+																									 SDTCisPtrTy<0>]>;
+def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
 																									 SDTCisVT<2, i32>]>;
 
-def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
-                                                   SDTCisSameAs<1, 2>, 
-																		 							 SDTCisVT<3, i32>,
-																									 SDTCisVT<4, i32>]>;
-
-def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
-                                                   SDTCisPtrTy<0>]>;
-
-def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
-                                                   SDTCisVT<2, i32>]>;
-
-def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", SDT_TriCoreBrCC, [SDNPHasChain, SDNPInGlue]>;
-def TriCorecmp     : SDNode<"TriCoreISD::CMP", SDT_TriCoreCmp, [SDNPOutGlue]>;
-def TriCorecmp64   : SDNode<"TriCoreISD::CMP64", SDT_TriCoreCmp64, [SDNPOutGlue]>;
-def TriCorelogiccmp: SDNode<"TriCoreISD::LOGICCMP", SDT_TriCoreLCmp, [SDNPInGlue, SDNPOutGlue]>;
+def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", 
+														SDT_TriCoreBrCC, [SDNPHasChain, SDNPInGlue]>;
+def TriCorecmp     : SDNode<"TriCoreISD::CMP", 
+														SDT_TriCoreCmp, [SDNPOutGlue]>;
+def TriCorelogiccmp: SDNode<"TriCoreISD::LOGICCMP", 
+														SDT_TriCoreLCmp, [SDNPInGlue, SDNPOutGlue]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
+def TriCoreimask   : SDNode<"TriCoreISD::IMASK", SDT_TriCoreImask>;
 def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
-//def TriCoreadd : SDNode<"TriCoreISD::ADD64", SDT_TriCoreIntBinOp, [SDNPCommutative, SDNPAssociative]>;
 
 def jmptarget : Operand<OtherVT> {
   let PrintMethod = "printPCRelImmOperand";
@@ -64,7 +57,6 @@ def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
 
-//def isPointer_1  : PatLeaf<(imm), [{ return N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR; }]>;
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
 
@@ -77,7 +69,6 @@ def TriCore_COND_LT : PatLeaf<(i32 3)>;
 def TriCore_LOGIC_AND_EQ : PatLeaf<(i32 0)>;
 def TriCore_LOGIC_AND_GE : PatLeaf<(i32 2)>;
 def TriCore_LOGIC_AND_LT : PatLeaf<(i32 3)>;
-
 def TriCore_LOGIC_OR_NE :  PatLeaf<(i32 1)>;
 def TriCore_LOGIC_OR_GE :  PatLeaf<(i32 12)>;
 def TriCore_LOGIC_OR_LT :  PatLeaf<(i32 13)>;
@@ -86,87 +77,83 @@ def TriCore_LOGIC_OR_LT :  PatLeaf<(i32 13)>;
 //===----------------------------------------------------------------------===//
 // ADD Instructions
 //===----------------------------------------------------------------------===//
-def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4)
-               ,"add $d, $const4",
-               [(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>
-{
-	let Constraints = "$s1 = $d";
-}
+let Constraints = "$s1 = $d" in
+		def ADDsrc : SRC<0xC2, (outs DataRegs:$d), (ins DataRegs:$s1, s4imm:$const4),
+		"add $d, $const4",
+		[(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>;
 
-//let isCommutable = 1 in {
+let isCommutable = 1 in {
 	def ADDrr : RR<0x0B, 0x00, (outs DataRegs:$d), 
-							(ins DataRegs:$s1, DataRegs:$s2),
-							"add $d, $s1, $s2",
-							[(set i32:$d, (add i32:$s1, i32:$s2))]>;
-		
+			(ins DataRegs:$s1, DataRegs:$s2),
+			"add $d, $s1, $s2",
+			[(set i32:$d, (add i32:$s1, i32:$s2))]>;
+
 	def ADDArr : RR<0x01, 0x01, (outs AddrRegs:$d),
-							 (ins AddrRegs:$s1, AddrRegs:$s2),
-							 "add.a $d, $s1, $s2",
-							 [(set AddrRegs:$d, (add AddrRegs:$s1, AddrRegs:$s2))]>;
-//} // isCommutable
+			(ins AddrRegs:$s1, AddrRegs:$s2),
+			"add.a $d, $s1, $s2",
+			[(set AddrRegs:$d, (add AddrRegs:$s1, AddrRegs:$s2))]>;
+} // let isCommutable = 1
 
 def ADDrc : RC<0x8B, 0x00, (outs DataRegs:$d),
-							(ins DataRegs:$s1, i32imm:$const9),
-							"add $d, $s1, $const9",
-							[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9))]>;
-	
+		(ins DataRegs:$s1, i32imm:$const9),
+		"add $d, $s1, $const9",
+		[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9))]>;
+
 def ADDIrlc : RLC<0x1B, (outs DataRegs:$d),
-							(ins DataRegs:$s1, s16imm:$const16),
-							"addi $d, $s1, $const16",
-							[(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16))]>;
+		(ins DataRegs:$s1, s16imm:$const16),
+		"addi $d, $s1, $const16",
+		[(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16))]>;
 
-let Defs = [PSW],	Uses = [PSW] in
-{
-def ADDCrr : RR<0x0B, 0x05, (outs DataRegs:$d), 
-							 (ins DataRegs:$s1, DataRegs:$s2),
-							 "addc $d, $s1, $s2",
-							 [(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2)),
-							 (implicit PSW)]>;
+let Defs = [PSW],	Uses = [PSW] in {
+	let isCommutable = 1 in {
+		def ADDCrr : RR<0x0B, 0x05, (outs DataRegs:$d), 
+				(ins DataRegs:$s1, DataRegs:$s2),
+				"addc $d, $s1, $s2",
+				[(set DataRegs:$d, (addc DataRegs:$s1, DataRegs:$s2)),
+				 (implicit PSW)]>;
 
-def ADDXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
-							 (ins DataRegs:$s1, DataRegs:$s2),
-							 "addx $d, $s1, $s2",
-							 [(set DataRegs:$d, (adde DataRegs:$s1, DataRegs:$s2)),
-							 (implicit PSW)]>;
+		def ADDXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
+				(ins DataRegs:$s1, DataRegs:$s2),
+				"addx $d, $s1, $s2",
+				[(set DataRegs:$d, (adde DataRegs:$s1, DataRegs:$s2)),
+				 (implicit PSW)]>;
+	} // let isCommutable = 1
 
-def ADDCrc : RR<0x8B, 0x05, (outs DataRegs:$d), 
-									 (ins DataRegs:$s1, s9imm:$const9),
-									 "addc $d, $s1, $const9",
-									 [(set DataRegs:$d, (addc DataRegs:$s1, immSExt9:$const9)),
-									 (implicit PSW)]>;
+	def ADDCrc : RR<0x8B, 0x05, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, s9imm:$const9),
+			"addc $d, $s1, $const9",
+			[(set DataRegs:$d, (addc DataRegs:$s1, immSExt9:$const9)),
+			 (implicit PSW)]>;
 
-def ADDXrc : RC<0x0B, 0x04, (outs DataRegs:$d), 
-									 (ins DataRegs:$s1, s9imm:$const9),
-									 "addx $d, $s1, $const9",
-									 [(set DataRegs:$d, (adde DataRegs:$s1, immSExt9:$const9)),
-									 (implicit PSW)]>;
+	def ADDXrc : RC<0x0B, 0x04, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, s9imm:$const9),
+			"addx $d, $s1, $const9",
+			[(set DataRegs:$d, (adde DataRegs:$s1, immSExt9:$const9)),
+			 (implicit PSW)]>;
 
-def SUBCrr : RR<0x0B, 0x0D, (outs DataRegs:$d), 
-							 (ins DataRegs:$s1, DataRegs:$s2),
-							 "subc $d, $s1, $s2",
-							 [(set DataRegs:$d, (subc DataRegs:$s1, DataRegs:$s2)),
-							 (implicit PSW)]>;
+	def SUBCrr : RR<0x0B, 0x0D, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, DataRegs:$s2),
+			"subc $d, $s1, $s2",
+			[(set DataRegs:$d, (subc DataRegs:$s1, DataRegs:$s2)),
+			 (implicit PSW)]>;
 
-def SUBXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
-							 (ins DataRegs:$s1, DataRegs:$s2),
-							 "subx $d, $s1, $s2",
-							 [(set DataRegs:$d, (sube DataRegs:$s1, DataRegs:$s2)),
-							 (implicit PSW)]>;
+	def SUBXrr : RR<0x0B, 0x04, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, DataRegs:$s2),
+			"subx $d, $s1, $s2",
+			[(set DataRegs:$d, (sube DataRegs:$s1, DataRegs:$s2)),
+			 (implicit PSW)]>;
 
-} // Defs, Uses
+} // let Defs = [PSW],	Uses = [PSW]
 
 def imml_32_h_32 : Operand<i64>, PatLeaf<(imm), [{
-	
+
 	int64_t val = N->getSExtValue();
 	int32_t lByte = val & 0xffffffff;
 	int32_t hByte = (val >> 32) & 0xffffffff;
-	
+
 	return (lByte >=-256 && lByte < 256 && hByte >=-256 && hByte < 256);
-			
+
 }]>;
-
-
-
 
 let Defs = [PSW] in {
 def ADDi64C : Pseudo<(outs ExtRegs:$d),
@@ -187,131 +174,191 @@ def SUBi64 : Pseudo<(outs ExtRegs:$d),
 									  [(set ExtRegs:$d, (sub ExtRegs:$s1, ExtRegs:$s2)),
 										(implicit PSW)]>;
 
-}
-def SUBAsc : SC<0x20, (outs), (ins u8imm:$imm),
-	        "sub.a %a10, $imm", []> 
-{
-	let Defs = [A10];
-	let Uses = [A10];
-	
-}
-//let Predicates = [isnotInteger] in 
-def SUBArr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
-               (ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
-               [(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
+} //let Defs = [PSW]
 
-//let Predicates = [isInteger] in 
-def RSUBrc : RC<0x8B, 0x08, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9)
-                   ,"rsub $d, $s1, $const9",
-                   [(set DataRegs:$d, (sub immSExt9:$const9, DataRegs:$s1)) ]>;
+let Defs = [A10], Uses = [A10] in
+def SUBAsc : SC<0x20, (outs), (ins u8imm:$const8), "sub.a %a10, $const8", []>;
+
+def SUBArr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
+		(ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
+		[(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
+
+def RSUBrc : RC<0x8B, 0x08, (outs DataRegs:$d), 
+							(ins DataRegs:$s1, s9imm:$const9) ,"rsub $d, $s1, $const9",
+							[(set DataRegs:$d, (sub immSExt9:$const9, DataRegs:$s1)) ]>;
 
 let Constraints="$d = $s1" in
-def RSUBsr : SR<0x32, 0x05, (outs DataRegs: $d), (ins DataRegs:$s1, s4imm:$const4), 
-		"rsub $d", [(set DataRegs:$d, (sub immSExt4:$const4, DataRegs:$s1))]>; 
+		def RSUBsr : SR<0x32, 0x05, (outs DataRegs:$d), (ins DataRegs:$s1),
+		"rsub $d", [(set DataRegs:$d, (sub (i32 0), DataRegs:$s1)) ]>;
 
 let Defs=[PSW] in {
-  def MULrr : RR2<0x73, 0x00A, (outs DataRegs:$d),
-                  (ins DataRegs:$s2, DataRegs:$s1), "mul $d, $s2, $s1",
-		  [(set DataRegs:$d, (mul DataRegs:$s1, DataRegs:$s2) )]>;
-	
-  def MULrc : RC<0x53, 0x001, (outs DataRegs:$d),
-                (ins DataRegs:$s1, s9imm:$const9),  "mul $d, $s1, $const9",
-		[(set DataRegs:$d, (mul DataRegs:$s1, immSExt9:$const9) )]>;
-}
+	def MULrr : RR2<0x73, 0x00A, (outs DataRegs:$d),
+			(ins DataRegs:$s2, DataRegs:$s1), "mul $d, $s2, $s1",
+			[(set DataRegs:$d, (mul DataRegs:$s1, DataRegs:$s2) )]>;
+
+	def MULrc : RC<0x53, 0x001, (outs DataRegs:$d),
+			(ins DataRegs:$s1, s9imm:$const9),  "mul $d, $s1, $const9",
+			[(set DataRegs:$d, (mul DataRegs:$s1, immSExt9:$const9) )]>;
+} // let Defs=[PSW]
 
 //===----------------------------------------------------------------------===//
 // Logical Instructions
 //===----------------------------------------------------------------------===//
 
 multiclass Logical32_0<bits<8> opcode1, string asmstring, 
-                    SDNode OpNode, bit isComm=0 > 
+SDNode OpNode> 
 {
+	def rc: RC<0x8f, opcode1{6-0}, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, u9imm:$const9),
+			!strconcat(asmstring, " $d, $s1, $const9"),
+			[(set DataRegs:$d, (OpNode DataRegs:$s1, immZExt9:$const9))]>; 
 
-  def rc: RC<0x8f, opcode1{6-0}, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, u9imm:$const9),
-            !strconcat(asmstring, " $d, $s1, $const9"),
-            [(set DataRegs:$d, (OpNode DataRegs:$s1, immZExt9:$const9))]>; 
-
-  def rr: RR<0x0f, opcode1, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, DataRegs:$s2),
-            !strconcat(asmstring, " $d, $s1, $s2"),
-            [(set DataRegs:$d, (OpNode DataRegs:$s1, DataRegs:$s2))]>; 
+	let isCommutable = 1 in
+			def rr: RR<0x0f, opcode1, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, DataRegs:$s2),
+			!strconcat(asmstring, " $d, $s1, $s2"),
+			[(set DataRegs:$d, (OpNode DataRegs:$s1, DataRegs:$s2))]>; 
 }
 
 multiclass Logical32_1<bits<8> opcode1, string asmstring, 
-                    SDNode OpNode1, PatFrag OpNode2, bit isComm=0 > 
+SDNode OpNode1, PatFrag OpNode2> 
 {
+	def rc: RC<0x8f, opcode1{6-0}, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, u9imm:$const9),
+			!strconcat(asmstring, " $d, $s1, $const9"),
+			[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, immZExt9:$const9)))]>;
 
-  def rc: RC<0x8f, opcode1{6-0}, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, u9imm:$const9),
-            !strconcat(asmstring, " $d, $s1, $const9"),
-						[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, immZExt9:$const9)))]>;
-             
-
-  def rr: RR<0x0f, opcode1, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, DataRegs:$s2),
-            !strconcat(asmstring, " $d, $s1, $s2"),
-						[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, i32:$s2)))]>;
+	let isCommutable = 1 in
+			def rr: RR<0x0f, opcode1, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, DataRegs:$s2),
+			!strconcat(asmstring, " $d, $s1, $s2"),
+			[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, i32:$s2)))]>;
 }
 
 multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr, 
-                    string asmstring, SDNode OpNode, bit isComm=1 >
+string asmstring, SDNode OpNode>
 {
 
-  def sc: SC<opcode1_sc, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, u8imm:$const8),
-            !strconcat(asmstring, " $d, $s1, $const8"),
-            [(set DataRegs:$d, (OpNode DataRegs:$s1, immZExt8:$const8))]>; 
+	def sc: SC<opcode1_sc, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, u8imm:$const8),
+			!strconcat(asmstring, " $d, $s1, $const8"),
+			[(set DataRegs:$d, (OpNode DataRegs:$s1, immZExt8:$const8))]>; 
 
-  def srr: SRR<opcode1_srr, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, DataRegs:$s2),
-            !strconcat(asmstring, " $d, $s2"),
-            [(set DataRegs:$d, (OpNode DataRegs:$s1, DataRegs:$s2))]>
-  {
-        let Constraints = "$s1 = $d";
-  }
+	let Constraints = "$s1 = $d" in
+			def srr: SRR<opcode1_srr, (outs DataRegs:$d), 
+			(ins DataRegs:$s1, DataRegs:$s2),
+			!strconcat(asmstring, " $d, $s2"),
+			[(set DataRegs:$d, (OpNode DataRegs:$s1, DataRegs:$s2))]>;
 }
 
+def imml_32_h_32_const9 : Operand<i64>, PatLeaf<(imm), [{
+
+	int64_t val = N->getSExtValue();
+	int32_t lByte = val & 0xffffffff;
+	int32_t hByte = (val >> 32) & 0xffffffff;
+
+	return (lByte >=0 && lByte < 512 && hByte >=0 && hByte < 512);
+
+}]>;
+
+def imml_neg_32_h_32_const64 : Operand<i64>, PatLeaf<(imm), [{
+	
+	int64_t val = N->getSExtValue();
+	int32_t lByte = val & 0xffffffff;
+	int32_t hByte = (val >> 32) & 0xffffffff;
+	
+	return (lByte >=-512 && lByte < 0 && hByte >=-512 && hByte < 0);
+			
+}]>;
+
+multiclass Logical64_Pseudo<SDNode OpNode>
+{
+	def rc64: Pseudo<(outs ExtRegs:$d), 
+			(ins ExtRegs:$s1, imml_32_h_32_const9:$const64),
+			"##NAME## Pseudo",
+			[(set ExtRegs:$d, (OpNode ExtRegs:$s1, imml_32_h_32_const9:$const64))]>;
+
+	let Constraints = "$s1 = $d", isCommutable = 1 in
+			def srr64: Pseudo<(outs ExtRegs:$d), 
+			(ins ExtRegs:$s1, ExtRegs:$s2),
+			"##NAME## Pseudo",
+			[(set ExtRegs:$d, (OpNode ExtRegs:$s1, ExtRegs:$s2))]>;
+}
+
+defm AND : Logical64_Pseudo<and>;
+defm OR  : Logical64_Pseudo<or>;
+defm XOR : Logical64_Pseudo<xor>;
 
 defm AND : Logical16<0x16, 0x26, "and", and>;
 defm AND : Logical32_0<0x08, "and", and>;
 
-
 defm NAND : Logical32_1<0x09, "nand", and, not>;
-defm NOR : Logical32_1<0x0B, "nor", or, not>;
-defm XNOR : Logical32_1<0x0B, "nxor", xor, not>;
+defm NOR  : Logical32_1<0x0B, "nor", or, not>;
+//defm XNOR : Logical32_1<0x0B, "nxor", xor, not>;
 
 defm OR : Logical32_0<0x0a, "or", or>;
 defm OR : Logical16<0x96, 0xA6, "or", or>;
 
 defm XOR : Logical32_0<0x0c, "xor", xor>;
-def XORsrr : SRR<0xc6, (outs DataRegs:$d), 
-            (ins DataRegs:$s1, DataRegs:$s2), "xor $d, $s1, $s2",
-            [(set DataRegs:$d, (xor DataRegs:$s1, DataRegs:$s2))]>
-{
-        let Constraints = "$s1 = $d";
-}
 
+let Constraints = "$s1 = $d", isCommutable = 1 in
+		def XORsrr : SRR<0xc6, (outs DataRegs:$d), 
+		(ins DataRegs:$s1, DataRegs:$s2), "xor $d, $s1, $s2",
+		[(set DataRegs:$d, (xor DataRegs:$s1, DataRegs:$s2))]>;
+
+def imm_from_0_to_neg512 : Operand<i32>, PatLeaf<(imm), [{
+	int64_t val = N->getSExtValue();
+	return (val >=-512 && val <= 0);
+}]>;
+
+class LOGICALN_RC <bits<7> op2, string asmstring, SDNode OpNode>
+	: RC<0x8f, op2, (outs DataRegs:$d), 
+    (ins DataRegs:$s1, imm_from_0_to_neg512:$const9),
+		!strconcat(asmstring," $d, $s1, ~($const9)"),
+		[(set i32:$d, (OpNode i32:$s1, imm_from_0_to_neg512:$const9 ))]>;
+
+def ANDNrc : LOGICALN_RC<0x0e, "andn", and>;
+def ORNrc  : LOGICALN_RC<0x0f, "orn", or>;
+def XNORrc : LOGICALN_RC<0x0d, "xnor", xor>;
+
+let Constraints = "$s1 = $d" in {
 def NOTsr : SR<0x46, 0x0, (outs DataRegs: $d), (ins DataRegs:$s1), 
-						"not $d", [(set DataRegs:$d, (not DataRegs:$s1))]> 
-{
-	 let Constraints = "$s1 = $d";
-}
+						"not $d", [(set DataRegs:$d, (not DataRegs:$s1))]>;
+
+def NOTrr64: Pseudo<(outs ExtRegs:$d), (ins ExtRegs:$s1), 
+		"##NAME## Pseudo", [(set ExtRegs:$d, (not ExtRegs:$s1))]>;
+} // let Constraints = "$s1 = $d" in
+
+def ANDNrc64: Pseudo<(outs ExtRegs:$d), 
+		(ins ExtRegs:$s1, imml_neg_32_h_32_const64:$const64), 
+		"##NAME## Pseudo", 
+		[(set ExtRegs:$d, (and ExtRegs:$s1, imml_neg_32_h_32_const64:$const64))]>;
+
+def ORNrc64: Pseudo<(outs ExtRegs:$d), 
+		(ins ExtRegs:$s1, imml_neg_32_h_32_const64:$const64), 
+		"##NAME## Pseudo", 
+		[(set ExtRegs:$d, (or ExtRegs:$s1, imml_neg_32_h_32_const64:$const64))]>;
+
+def XORrcneg64: Pseudo<(outs ExtRegs:$d), 
+		(ins ExtRegs:$s1, imml_neg_32_h_32_const64:$const64), 
+		"##NAME## Pseudo",
+		[(set ExtRegs:$d, (xor ExtRegs:$s1, imml_neg_32_h_32_const64:$const64))]>;
+
 
 //===----------------------------------------------------------------------===//
 // Mov Immediate Instructions
 //===----------------------------------------------------------------------===//
 
 class MOV_RR<bits<8> op1, bits<8> op2, string opstr, 
-										RegisterClass outregClass, RegisterClass inregClass>:
-										RR <op1, op2,
-										(outs outregClass:$d),
-										(ins inregClass:$s2),
-										!strconcat(opstr, " $d, $s2"), []>;
+RegisterClass outregClass, RegisterClass inregClass>
+: RR<op1, op2,
+	(outs outregClass:$d),
+	(ins inregClass:$s2),
+	!strconcat(opstr, " $d, $s2"), [/* No Pattern*/]>;
 
 class MOV_CONST<bits<8> opcode, string opstr, dag ins, list<dag> pattern>
-    : RLC<opcode, (outs DataRegs:$d), ins,
-      !strconcat(opstr, " $d, $const16"), pattern>;
+: RLC<opcode, (outs DataRegs:$d), ins,
+	!strconcat(opstr, " $d, $const16"), pattern>;
 
 def MOVrr   : MOV_RR<0x0B, 0x1F, "mov", DataRegs, DataRegs>;
 def MOVDrr  : MOV_RR<0x01, 0x4C, "mov.d", DataRegs, AddrRegs>;
@@ -322,24 +369,26 @@ def MOVrlc  : MOV_CONST<0x3B,"mov", (ins s16imm:$const16) ,
 def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
               [(set DataRegs:$d, immZExt16:$const16)]>;
 
-def MOVHrlc : MOV_CONST<0x7B, "movh", (ins i32imm:$const16), []>;
+def MOVHrlc : MOV_CONST<0x7B, "movh", (ins i32imm:$const16), [/* No Pattern*/]>;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1 in 
-def MOVi32 : Pseudo<(outs DataRegs:$d), (ins i32imm:$const32), "MOV32 Pseudo",
+def MOVi32 : Pseudo<(outs DataRegs:$d), (ins i32imm:$const32), "##NAME## Pseudo",
                      [(set DataRegs:$d, (movei32 imm:$const32))]>;
+
+def IMASKrcpw :  RCPW<0xB7, 0b01, (outs ExtRegs:$d),
+		(ins u4imm:$const4, i32imm:$pos, i32imm:$width),
+		"imask $d, $const4, $pos, $width",
+		[(set ExtRegs:$d, (TriCoreimask immZExt4:$const4, imm:$pos, imm:$width))]>;
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
 
-class AlignedLoad<bits<6> op2, string opstr, 
-								PatFrag PF, RegisterClass RC = DataRegs, ValueType intType = i32> : 
-			BO<0x09, op2, (outs RC:$d),
-			   (ins memsrc:$off10),
-			 	 !strconcat(opstr, " $d, $off10"),
-				 [(set RC:$d, (intType (PF addr:$off10)))]> 
-{
-	let mayLoad = 1;
-}
+class AlignedLoad<bits<6> op2, string opstr, PatFrag PF, 
+									RegisterClass RC = DataRegs, ValueType intType = i32>
+								: BO<0x09, op2, (outs RC:$d),
+								 (ins memsrc:$off10),
+								 !strconcat(opstr, " $d, $off10"),
+								 [(set RC:$d, (intType (PF addr:$off10)))]>{ let mayLoad = 1; }
 
 def LDBbo  : AlignedLoad<0x20, "ld.b"  , sextloadi8>;
 def LDBUbo : AlignedLoad<0x21, "ld.bu" , zextloadi8>;
@@ -352,62 +401,58 @@ def LDDbo  : AlignedLoad<0x25, "ld.d"  , load, ExtRegs, i64>;
 def : Pat<(extloadi8 addr:$src), (LDBbo addr:$src)>;
 def : Pat<(extloadi16 addr:$src), (LDHbo addr:$src)>;
 
-let Predicates = [isnotPointer] in 
-def STBbo : BO<0x89, 0x20,(outs), (ins DataRegs:$d, memsrc:$off10),
-							"st.b $off10, $d",
-							[(truncstorei8 DataRegs:$d, addr:$off10)]>;
+let Predicates = [isnotPointer] in {
+	def STBbo : BO<0x89, 0x20,(outs), (ins DataRegs:$d, memsrc:$off10),
+			"st.b $off10, $d",
+			[(truncstorei8 DataRegs:$d, addr:$off10)]>;
 
-let Predicates = [isnotPointer] in 
-def STHbo : BO<0x89, 0x22,(outs), (ins DataRegs:$d, memsrc:$off10),
-							"st.h $off10, $d",
-							[(truncstorei16 DataRegs:$d, addr:$off10)]>;
+	def STHbo : BO<0x89, 0x22,(outs), (ins DataRegs:$d, memsrc:$off10),
+			"st.h $off10, $d",
+			[(truncstorei16 DataRegs:$d, addr:$off10)]>;
 
-let Predicates = [isnotPointer] in 
-def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$off10),
-                  "st.w $off10, $d",
-                  [(store DataRegs:$d, addr:$off10)]>;
+	def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$off10),
+			"st.w $off10, $d",
+			[(store DataRegs:$d, addr:$off10)]>;
 
-let Predicates = [isnotPointer] in 
-def STDbo : BO<0x89, 0x25, (outs), (ins ExtRegs:$d, memsrc:$off10),
-                  "st.d $off10, $d",
-                  [(store ExtRegs:$d, addr:$off10)]>;
+	def STDbo : BO<0x89, 0x25, (outs), (ins ExtRegs:$d, memsrc:$off10),
+			"st.d $off10, $d",
+			[(store ExtRegs:$d, addr:$off10)]>;	
+} // let Predicates = [isnotPointer]
+
 
 let Predicates = [isPointer] in 
-def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$off10),
-                  "st.a $off10, $d",
-                  [(store i32:$d, addr:$off10)]>;
+		def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$off10),
+		"st.a $off10, $d",
+		[(store i32:$d, addr:$off10)]>;
 
 //===----------------------------------------------------------------------===//
 // Shift Instructions
 //===----------------------------------------------------------------------===//
 
 def SHrc : RC<0x8F,0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
-    "sh $d, $s1, $const9",
-    [(set DataRegs:$d, (TriCoresh DataRegs:$s1, immSExt9:$const9))]>;	
+		"sh $d, $s1, $const9",
+		[(set DataRegs:$d, (TriCoresh DataRegs:$s1, immSExt9:$const9))]>;	
 
 def SHrr : RR<0x01, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
-				"sh $d, $s1, $s2", [(set DataRegs:$d, (TriCoresh DataRegs:$s1, DataRegs:$s2))]>;
+		"sh $d, $s1, $s2", [(set DataRegs:$d, (TriCoresh DataRegs:$s1, DataRegs:$s2))]>;
 
 
 //===----------------------------------------------------------------------===//
 // Return Instructions
 //===----------------------------------------------------------------------===//
 
-let isTerminator = 1, isReturn = 1, isBarrier = 1 in {
-  def RET : T32<(outs), (ins variable_ops),
-                    "ret",  [(TriCoreRetFlag)]> {
-    //let Inst{27-0}  = 0b0001001011111111111100011110;
-  }
-}
+let isTerminator = 1, isReturn = 1, isBarrier = 1 in 
+  def RET : T32<(outs), (ins variable_ops), "ret",  [(TriCoreRetFlag)]>;
+
 
 //===----------------------------------------------------------------------===//
 // Call Instructions
 //===----------------------------------------------------------------------===//
 
-let isCall = 1, Defs = [A11], Uses = [A10] in {
-  def BL : B<0x6D, (outs), (ins i32imm:$disp),
-                      "call $disp ",  [(tricore_call imm:$disp)]>;
-}
+let isCall = 1, Defs = [A11], Uses = [A10] in 
+	def BL : B<0x6D, (outs), (ins i32imm:$disp),
+	"call $disp ",  [(tricore_call imm:$disp)]>;
+
 
 //===----------------------------------------------------------------------===//
 // Extension Instructions
@@ -458,6 +503,9 @@ defm EQ : COMPARE_32<0x10, "eq", TriCore_COND_EQ>;
 defm GE : COMPARE_32<0x14, "ge", TriCore_COND_GE>;
 defm LT : COMPARE_32<0x12, "lt", TriCore_COND_LT>;
 
+//===----------------------------------------------------------------------===//
+// 64 bit Compare Instructions
+//===----------------------------------------------------------------------===//
 
 multiclass LOGIC_COMPARE<bits<7> op_s, bits<7> op_u, 
 									string asmstring,  PatLeaf PF>
@@ -506,6 +554,7 @@ multiclass LOGIC_COMPARE<bits<7> op_s, bits<7> op_u,
 //	
 //}
 //
+
 defm AND_LT : LOGIC_COMPARE<0x22, 0x23, "and.lt", TriCore_LOGIC_AND_LT>;
 defm AND_GE : LOGIC_COMPARE<0x24, 0x25, "and.ge", TriCore_LOGIC_AND_GE>;
 defm OR_LT  : LOGIC_COMPARE<0x29, 0x2A, "or.lt",  TriCore_LOGIC_OR_LT>;
@@ -576,13 +625,9 @@ def OR_NErc : RC<0x8B, 0x28,
 								 "or.ne $d, $s1, $const9",
 								 [( set DataRegs:$d, (TriCorelogiccmp DataRegs:$fsrc, 
 										 DataRegs:$s1, immSExt9:$const9, (i32 TriCore_LOGIC_OR_NE)))]>;
-}
+} // let Constraints="$d = $fsrc"
 
 
-//def COMPARE64 : Pseudo< (outs DataRegs:$d),
-//										    (ins ExtRegs:$s1, ExtRegs:$s2),
-//										    "COMPARE64 PSEUDO",
-//												[( set DataRegs:$d, (TriCorecmp64 ExtRegs:$s1, ExtRegs:$s2))]>;
 //===----------------------------------------------------------------------===//
 // Branch Instructions
 //===----------------------------------------------------------------------===//
@@ -672,22 +717,8 @@ def ADJCALLSTACKUP   : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
 def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
           (BL tglobaladdr:$dst)>;
 
-//def : Pat<(i32 immSExt16:$src),
-//					(MOVrlc immSExt16:$src)>;
-//def : Pat<(i32 immZExt16:$src),
-//					(MOVUrlc immZExt16:$src)>;
-//def : Pat<(i32 imm:$src),
-//					(MOVi32 imm:$src)>;
-
-//def : Pat<(i64 imm:$src),
-//          (INSERT_SUBREG (i64 (IMPLICIT_DEF)), (MOVi64 imm:$src), subreg_even)>;
-
 // Lower 32 bits of a 64-bit word 
 def LO32 : SDNodeXForm<imm, [{
-//	uint64_t x = N->getZExtValue();
-//	outs() << "Const: " << N->getZExtValue() << "\n";
-//	outs() << "Const: " << (uint32_t)N->getZExtValue() << "\n";
-//	outs() << "Const: " << (x>>32) << "\n";
 	return CurDAG->getTargetConstant((uint32_t) N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>; 
 
@@ -696,6 +727,9 @@ def HI32 : SDNodeXForm<imm, [{
 	return CurDAG->getTargetConstant((uint32_t) (N->getZExtValue()>>32), SDLoc(N), MVT::i32);
 }]>; 
 
+//def imm_is_zero : Operand<i64>, PatLeaf<(imm), [{
+//	return !(N->getSExtValue()==0);
+//}]>;
 
 def : Pat<(i64 imm:$src),
           (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
@@ -710,6 +744,10 @@ def : Pat<(i32 (trunc ExtRegs:$src)),
 // odd_reg = (Extended Register >> 32)
 def : Pat<(i32 (trunc (srl ExtRegs:$src, (i32 32)))), 
 					(EXTRACT_SUBREG ExtRegs:$src, subreg_odd)>;
+
+//def : Pat<(and ExtRegs:$s1, ExtRegs:$s2), 
+//					(ANDrr ( (EXTRACT_SUBREG ExtRegs:$src, subreg_odd),
+//							(EXTRACT_SUBREG ExtRegs:$src, subreg_odd)>;
 
 
 def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 

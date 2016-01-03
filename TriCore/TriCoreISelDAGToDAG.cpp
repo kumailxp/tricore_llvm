@@ -96,7 +96,6 @@ public:
 
 	SDNode *Select(SDNode *N);
 	SDNode *SelectConstant(SDNode *N);
-	SDNode *createDRegPairNode(SDValue V0, SDValue V1);
 
 	bool SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offset);
 	bool SelectAddr_new(SDValue N, SDValue &Base, SDValue &Disp);
@@ -137,7 +136,6 @@ bool TriCoreDAGToDAGISel::MatchWrapper(SDValue N, TriCoreISelAddressMode &AM) {
 	DEBUG(errs() << "Match Wrapper N => ";
 	N.dump();
 	errs()<< "N0 => "; N0.dump(); );
-
 
 	if (GlobalAddressSDNode *G = dyn_cast<GlobalAddressSDNode>(N0)) {
 		AM.GV = G->getGlobal();
@@ -316,15 +314,35 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 	return true;
 }
 
-/// \brief Form a Extended register from a pair of Data regs.
-SDNode *TriCoreDAGToDAGISel::createDRegPairNode(SDValue V0, SDValue V1) {
-  SDLoc dl(V0.getNode());
-  SDValue RegClass =
-    CurDAG->getTargetConstant(TriCore::ExtRegsRegClassID, dl, MVT::i64);
-  SDValue SubReg0 = CurDAG->getTargetConstant(TriCore::subreg_even, dl, MVT::i32);
-  SDValue SubReg1 = CurDAG->getTargetConstant(TriCore::subreg_odd, dl, MVT::i32);
-  const SDValue Ops[] = { RegClass, V0, SubReg0, V1, SubReg1 };
-  return CurDAG->getMachineNode(TargetOpcode::REG_SEQUENCE, dl, MVT::i64, Ops);
+// Returns one plus the index of the least significant
+// 1-bit of x, or if x is zero, returns zero.
+static int getFFS (unsigned v) { return __builtin_ffs(v);}
+
+// Return the number of set bits
+static int getNumSetBits(unsigned int v) {
+	int c=0;
+	v = v - ((v >> 1) & 0x55555555);                    // reuse input as temporary
+	v = (v & 0x33333333) + ((v >> 2) & 0x33333333);     // temp
+	c = (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24; // count
+	return c;
+}
+
+// Return the number of consecutive set bits
+static int getNumConsecutiveOnes(int in) {
+  int count = 0;
+  while (in) {
+    in = (in & (in << 1));
+    count++;
+  }
+  return count;
+}
+
+static int ipow(int base)
+{
+    int result = 1;
+    for (int i = 0; i<base; i++)
+    	result = result<<1;
+    return result;
 }
 
 SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
@@ -332,24 +350,81 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	  ConstantSDNode *ConstVal = cast<ConstantSDNode>(N);
 	  uint64_t ImmVal = ConstVal->getZExtValue();
 	  int64_t ImmSVal = ConstVal->getSExtValue();
-	  uint64_t SupportedMask = 0xfffffffff;
 
-//	  outs() << "getValueType: " << N->getValueType(0).getEVTString() << "\n";
-//		outs() << "getNumValues: " << ConstVal->getNumValues() << "\n";
-//		outs() << "hasAnyUseOfValue: " << ConstVal->hasAnyUseOfValue(0) << "\n";
-//	  outs() << "Op Type: " << ConstVal->getValueType(0).getEVTString() << "\n";
-//	  outs() << "Zero Extend Value: " << ConstVal->getZExtValue() << "\n";
-//	  outs() << "Sign Extend Value: " << ConstVal->getSExtValue() << "\n";
+	  if ( ConstVal->getValueType(0) == MVT::i64) {
+	  	/*
+	  	 * In case, we get a 64 bit constant node, we first try to generate an
+	  	 * imask instruction. Only if it fails, then we proceed to generate
+	  	 * pseudo moves.
+	  	 */
+	  	uint32_t lowerByte 	= ImmVal & 0x00000000ffffffff;
+	  	uint32_t higherByte = ImmVal>>32;
+			uint64_t width = 0;
 
+			outs()<<"higherByte: " << higherByte << "\n";
+			outs()<<"lowerByte: " <<  lowerByte << "\n";
+			if (ImmVal == 0) {
+				SDValue _constVal = CurDAG->getTargetConstant(0, N, MVT::i32);
+				SDValue _width = CurDAG->getTargetConstant(0, N, MVT::i32);
+				SDValue _pos = CurDAG->getTargetConstant(0, N, MVT::i32);
+				return CurDAG->getMachineNode(TriCore::IMASKrcpw, N, MVT::i64,
+					  				_constVal, _pos, _width);
+			}
 
-	  if ( ConstVal->getValueType(0) == MVT::i64)
-	  	return SelectCode(N);
+	  	// In case both bytes contain set bits then exit
+	  	if(ImmSVal<0 || (higherByte!=0 && lowerByte!=0)) {
+	  		outs()<< "exit\n";
+	  		return SelectCode(N);
+	  	}
+	  	else if(higherByte==0 && lowerByte!=0) {
+	  		uint64_t posLSB = getFFS(lowerByte) - 1;
+	  		uint64_t numSetBits = getNumSetBits(lowerByte);
+				uint64_t numConsecBits = getNumConsecutiveOnes(lowerByte);
+	  		// In case the patch of set bits is not a mask then exit
+	  		if (numSetBits != numConsecBits) return SelectCode(N);
+	  		// In case the mask for the lower byte is > 0xf we exit
+	  		if (numConsecBits > 4) return SelectCode(N);
 
+	  		// In case we are dealing with the lower byte,
+	  		// only Const4Val is set
+	  		int64_t Const4Val = ipow(numConsecBits) - 1;
+	  		outs()<<"posLSB: " << posLSB << "\n";
+	  		outs()<<"ConstVal: " << Const4Val << "\n";
 
-	  if ((ImmVal & SupportedMask) != ImmVal) {
-//	  	outs() <<" Immediate size not supported!\n";
-	    return SelectCode(N);
+	  		SDValue _constVal = CurDAG->getTargetConstant(Const4Val, N, MVT::i32);
+	  		SDValue _width = CurDAG->getTargetConstant(width, N, MVT::i32);
+	  		SDValue _pos = CurDAG->getTargetConstant(posLSB, N, MVT::i32);
+
+	  		return CurDAG->getMachineNode(TriCore::IMASKrcpw, N, MVT::i64,
+	  				_constVal, _pos, _width);
+	  	}
+	  	else if (higherByte!=0 && lowerByte==0) {
+	  		uint64_t posLSB = getFFS(higherByte) - 1;
+	  		uint64_t numSetBits = getNumSetBits(higherByte);
+				uint64_t numConsecBits = getNumConsecutiveOnes(higherByte);
+	  		outs()<<"posLSB: " << posLSB << "\n";
+	  		outs()<<"numConsecBits: " << numConsecBits << "\n";
+	  		// In case the patch of set bits is not a mask then exit
+	  		if (numSetBits != numConsecBits) return SelectCode(N);
+
+	  		// As per data sheet: (pos  + width)>31 is undefined
+	  		if ((posLSB + numConsecBits) > 31) return SelectCode(N);
+
+	  		SDValue _constVal = CurDAG->getTargetConstant(0, N, MVT::i32);
+				SDValue _width = CurDAG->getTargetConstant(numConsecBits, N, MVT::i32);
+				SDValue _pos = CurDAG->getTargetConstant(posLSB, N, MVT::i32);
+
+				return CurDAG->getMachineNode(TriCore::IMASKrcpw, N, MVT::i64,
+						_constVal, _pos, _width);
+
+	  	}
+
 	  }
+
+//	  if ((ImmVal & SupportedMask) != ImmVal) {
+////	  	outs() <<" Immediate size not supported!\n";
+//	    return SelectCode(N);
+//	  }
 
 	  // Select the low part of the immediate move.
 		uint64_t LoMask = 0xffff;
@@ -383,6 +458,8 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	  }
 	  else if(ImmHi && (ImmLo == 0))
 	  	Move = CurDAG->getMachineNode(TriCore::MOVHrlc, N, MVT::i32, ConstHi);
+	  else if((ImmHi == 0) && (ImmLo == 0))
+	  	return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstHi);
 	  else {
 
 	  	Move = CurDAG->getMachineNode(TriCore::MOVHrlc, N, MVT::i32, ConstHi);
@@ -415,23 +492,6 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	switch (N->getOpcode()) {
 	case ISD::Constant:
 		return SelectConstant(N);
-	case ISD::ADD:
-	case TriCoreISD::ADD64:{
-		outs().changeColor(raw_ostream::YELLOW,1) <<"ADD\n";
-		N->dump();
-		outs().changeColor(raw_ostream::WHITE,0);
-		break;
-	}
-	case ISD::ADDC: {
-		outs().changeColor(raw_ostream::YELLOW,1) <<"ADDC\n";
-		outs().changeColor(raw_ostream::WHITE,0);
-		break;
-	}
-	case ISD::ADDE: {
-		outs().changeColor(raw_ostream::YELLOW,1) <<"ADDE\n";
-		outs().changeColor(raw_ostream::WHITE,0);
-		break;
-	}
 	case ISD::FrameIndex: {
 		int FI = cast<FrameIndexSDNode>(N)->getIndex();
 		SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);

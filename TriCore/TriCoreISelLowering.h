@@ -34,8 +34,6 @@ enum NodeType {
   LOAD_SYM,
   // This loads a 32-bit immediate into a register.
   MOVEi32,
-	// This loads a 64-bit immediate into a register.
-	MOVEi64,
   CALL,
 	// TriCore has a different way of lowering branch conditions.
 	BR_CC,
@@ -48,13 +46,11 @@ enum NodeType {
 	// depends on the signed-ness on the shift value. A negytive value is
 	// a right shift, and vice versa.
 	SH,
-	SUB,
 	// Loads ternary operators
 	SELECT_CC,
-	// 64 bit constant add
-	ADD64,
 	LOGICCMP,
-	CMP64
+	IMASK,
+	SUB
 };
 }
 

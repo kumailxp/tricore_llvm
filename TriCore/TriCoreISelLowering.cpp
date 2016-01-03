@@ -47,16 +47,14 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::RET_FLAG: return "TriCoreISD::RetFlag";
   case TriCoreISD::LOAD_SYM: return "TriCoreISD::LOAD_SYM";
   case TriCoreISD::MOVEi32:  return "TriCoreISD::MOVEi32";
-  case TriCoreISD::MOVEi64:  return "TriCoreISD::MOVEi64";
   case TriCoreISD::CALL:     return "TriCoreISD::CALL";
   case TriCoreISD::BR_CC:    return "TriCoreISD::BR_CC";
   case TriCoreISD::SELECT_CC:return "TriCoreISD::SELECT_CC";
   case TriCoreISD::LOGICCMP: return "TriCoreISD::LOGICCMP";
   case TriCoreISD::CMP:      return "TriCoreISD::CMP";
-  case TriCoreISD::CMP64:    return "TriCoreISD::CMP64";
+  case TriCoreISD::IMASK:    return "TriCoreISD::IMASK";
   case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
   case TriCoreISD::SH:       return "TriCoreISD::SH";
-  case TriCoreISD::ADD64:    return "TriCoreISD::ADD64";
   }
 }
 
@@ -89,6 +87,7 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   setOperationAction(ISD::SHL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRA,           MVT::i32,   Custom);
+  //setOperationAction(ISD::AND,           MVT::i64,   Expand);
 
 }
 
@@ -245,12 +244,11 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
   }
 
   if (VT == MVT::i64) {
-  	outs() <<"This is a 64 bit compare error!\n";
 
   	SDValue LHSlo = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, LHS,
   	                               DAG.getIntPtrConstant(0, dl));
   	SDValue LHShi = DAG.getNode(ISD::EXTRACT_ELEMENT, dl, MVT::i32, LHS,
-  	  	                               DAG.getIntPtrConstant(1, dl));
+  	  	                           DAG.getIntPtrConstant(1, dl));
 
   	SDValue RHSlo, RHShi;
   	if (RHS.getOpcode() != ISD::Constant) {
@@ -261,7 +259,6 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
   	}
   	else
   	{
-
   		ConstantSDNode *C = cast<ConstantSDNode>(RHS);
   		int64_t immVal = C->getSExtValue();
   		int32_t lowerByte = immVal & 0xffffffff;

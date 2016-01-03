@@ -251,15 +251,36 @@ class BRC<bit op2, bits<8> op1, dag outs, dag ins, string asmstr,
 }
 
 //===----------------------------------------------------------------------===//
+// 32-bit RCPW Instruction Format: <op1|s1|const4|width|op2|pos|d>
+//===----------------------------------------------------------------------===//
+class RCPW<bits<8> op1, bits<2> op2 , dag outs, dag ins, string asmstr, 
+                list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
+	
+	bits<4> s1;
+	bits<4> const4;
+	bits<4> d;
+	bits<5> width;
+	bits<5> pos;
+	
+	let Inst{7-0} = op1;
+	let Inst{11-8} = s1;
+	let Inst{15-12} = const4;
+	let Inst{20-16} = width;
+	let Inst{22-21} = op2;
+	let Inst{27-23} = pos;
+	let Inst{31-28} = d;
+}
+
+//===----------------------------------------------------------------------===//
 // 32-bit BOL Instr Format: <off16[9:6]|off16[15:10]|off16[5:0]|s2|s1/d|op1>
 //===----------------------------------------------------------------------===//
 class BOL<bits<8> op1, dag outs, dag ins, string asmstr, 
                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
   bits<16> off16;
   bits<4> s2;
-  bits<4> s1_d;
+  bits<4> s1;
   let Inst{7-0} = op1;
-  let Inst{11-8} = s1_d;
+  let Inst{11-8} = s1;
   let Inst{15-12} = s2;
   let Inst{21-16} = off16{5-0};
   let Inst{27-22} = off16{15-10};

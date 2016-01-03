@@ -78,20 +78,16 @@ unsigned TriCoreInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
 }
 
 void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
-                                 MachineBasicBlock::iterator I, DebugLoc DL,
-                                 unsigned DestReg, unsigned SrcReg,
-                                 bool KillSrc) const {
-//  BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::MOVrr), DestReg) //MOVrr
-//      .addReg(SrcReg, getKillRegState(KillSrc));
-
+		MachineBasicBlock::iterator I, DebugLoc DL,
+		unsigned DestReg, unsigned SrcReg,
+		bool KillSrc) const {
 
 	bool DataRegsDest = TriCore::DataRegsRegClass.contains(DestReg);
 	bool DataRegsSrc = TriCore::DataRegsRegClass.contains(SrcReg);
 
 	if (DataRegsDest && DataRegsSrc) {
-		outs()<<"==DataRegsDest && DataRegsSrc==\n";
 		BuildMI(MBB, I, DL, get(TriCore::MOVrr), DestReg)
-									.addReg(SrcReg, getKillRegState(KillSrc));
+						.addReg(SrcReg, getKillRegState(KillSrc));
 		return;
 	}
 
@@ -448,12 +444,139 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 	{
 	default:
 		return false;
+	case TriCore::NOTrr64: {
+		unsigned OpLo, OpHi, DstLoReg, DstHiReg;
+
+		unsigned DstReg = MI->getOperand(0).getReg();
+
+		bool DstIsDead = MI->getOperand(0).isDead();
+		bool DstIsKill = MI->getOperand(1).isKill();
+
+		splitRegs(DstReg, DstLoReg, DstHiReg);
+
+		OpLo = TriCore::NOTsr;
+		OpHi = TriCore::NOTsr;
+
+		BuildMI(MBB, MI, DL, get(OpLo))
+			.addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+			.addReg(DstLoReg, getKillRegState(DstIsKill));
+
+		BuildMI(MBB, MI, DL, get(OpHi))
+			.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+			.addReg(DstHiReg, getKillRegState(DstIsKill));
+
+		MBB.erase(MI);
+		return true;
+	}
+	case TriCore::ANDsrr64:
+	case TriCore::XORsrr64:
+	case TriCore::ORsrr64:{
+		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
+		          Src1LoReg, Src1HiReg, DstLoReg, DstHiReg;
+		unsigned DstReg = MI->getOperand(0).getReg();
+		unsigned Src0Reg = MI->getOperand(1).getReg();
+		unsigned Src1Reg = MI->getOperand(2).getReg();
+
+		bool DstIsDead = MI->getOperand(0).isDead();
+		bool Src0IsKill = MI->getOperand(1).isKill();
+		bool Src1IsKill = MI->getOperand(2).isKill();
+
+		splitRegs(Src0Reg, Src0LoReg, Src0HiReg);
+		splitRegs(Src1Reg, Src1LoReg, Src1HiReg);
+		splitRegs(DstReg, DstLoReg, DstHiReg);
+
+		if (MI->getOpcode() == TriCore::ANDsrr64) {
+				OpLo = TriCore::ANDsrr;
+				OpHi = TriCore::ANDsrr;
+		}
+		else if (MI->getOpcode() == TriCore::XORsrr64) {
+			OpLo = TriCore::XORsrr;
+			OpHi = TriCore::XORsrr;
+		}
+		else {
+				OpLo = TriCore::ORsrr;
+				OpHi = TriCore::ORsrr;
+		}
+
+		BuildMI(MBB, MI, DL, get(OpLo))
+			.addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+			.addReg(Src0LoReg, getKillRegState(Src0IsKill))
+			.addReg(Src1LoReg, getKillRegState(Src1IsKill));
+
+		BuildMI(MBB, MI, DL, get(OpHi))
+			.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+			.addReg(Src0HiReg, getKillRegState(Src0IsKill))
+			.addReg(Src1HiReg, getKillRegState(Src1IsKill));
+
+		MBB.erase(MI);
+		return true;
+	}
+	case TriCore::XORrc64:
+	case TriCore::ANDrc64:
+	case TriCore::ORrc64:
+	case TriCore::ANDNrc64:
+	case TriCore::ORNrc64:
+	case TriCore::XORrcneg64:
+	{
+			unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
+			DstLoReg, DstHiReg;
+
+			unsigned DstReg = MI->getOperand(0).getReg();
+			unsigned Src0Reg = MI->getOperand(1).getReg();
+
+			bool DstIsDead = MI->getOperand(0).isDead();
+			bool Src0IsKill = MI->getOperand(1).isKill();
+
+			int64_t immVal = MI->getOperand(2).getImm();
+			int32_t lowByte = immVal & 0xffffffff;
+			int32_t highByte = (immVal>>32) & 0xffffffff;
+
+			splitRegs(Src0Reg, Src0LoReg, Src0HiReg);
+			splitRegs(DstReg, DstLoReg, DstHiReg);
+
+			if (MI->getOpcode() == TriCore::ANDrc64) {
+				OpLo = TriCore::ANDrc;
+				OpHi = TriCore::ANDrc;
+			}
+			else if (MI->getOpcode() == TriCore::XORrc64) {
+				OpLo = TriCore::XORrc;
+				OpHi = TriCore::XORrc;
+			}
+			else if (MI->getOpcode() == TriCore::XORrcneg64) {
+				OpLo = TriCore::XNORrc;
+				OpHi = TriCore::XNORrc;
+			}
+			else if (MI->getOpcode() == TriCore::ORNrc64) {
+				OpLo = TriCore::ORNrc;
+				OpHi = TriCore::ORNrc;
+			}
+			else if(MI->getOpcode() == TriCore::ANDNrc64) {
+				OpLo = TriCore::ANDNrc;
+				OpHi = TriCore::ANDNrc;
+			}
+			else {
+				OpLo = TriCore::ORrc;
+				OpHi = TriCore::ORrc;
+			}
+
+			BuildMI(MBB, MI, DL, get(OpLo))
+				.addReg(DstLoReg, RegState::Define | getDeadRegState(DstIsDead))
+				.addReg(Src0LoReg, getKillRegState(Src0IsKill))
+				.addImm(lowByte);
+
+			BuildMI(MBB, MI, DL, get(OpHi))
+					.addReg(DstHiReg, RegState::Define | getDeadRegState(DstIsDead))
+					.addReg(Src0HiReg, getKillRegState(Src0IsKill))
+					.addImm(highByte);
+
+			MBB.erase(MI);
+			return true;
+		}
 	case TriCore::ADDi64:
 	case TriCore::SUBi64:{
 
 		unsigned OpLo, OpHi, Src0LoReg, Src0HiReg,
 		          Src1LoReg, Src1HiReg, DstLoReg, DstHiReg;
-
 		unsigned DstReg = MI->getOperand(0).getReg();
 		unsigned Src0Reg = MI->getOperand(1).getReg();
 		unsigned Src1Reg = MI->getOperand(2).getReg();
