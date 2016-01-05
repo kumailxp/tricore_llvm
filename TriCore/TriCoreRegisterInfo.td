@@ -53,7 +53,7 @@ foreach i = 0-15 in {
 
 
 def subreg_even: SubRegIndex<32,0> {let Namespace = "TriCore";}
-def subreg_odd : SubRegIndex<32,0> {let Namespace = "TriCore";}
+def subreg_odd : SubRegIndex<32,32> {let Namespace = "TriCore";}
 
 //Extended 64-bit registers
 let SubRegIndices = [subreg_even, subreg_odd] in {
@@ -82,12 +82,12 @@ def PC   : TriCorePSReg<2, "PC">, DwarfRegNum<[42]>;
 def DataRegs : RegisterClass<"TriCore", [i32], 32, (add
 		// Implict Data
 		D15,
-		// Others
+		// Mostly Used
 		D2, D3,
 		D4, D5, D6, D7,
 		D8, D9, D10, D11,
 		D12, D13, D14,
-		// Others
+		// Others - Compiler Speicific
 		D0, D1)>;
 
 def AddrRegs : RegisterClass<"TriCore", [i32], 32, (add

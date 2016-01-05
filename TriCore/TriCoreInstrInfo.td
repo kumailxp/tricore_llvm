@@ -21,6 +21,12 @@ def SDT_TriCoreImask        : SDTypeProfile<1, 3, [SDTCisVT<0, i64>,
 																									 SDTCisVT<1, i32>,
 																									 SDTCisVT<2, i32>,
 																									 SDTCisVT<3, i32>]>;
+
+def SDT_TriCoreExtract       : SDTypeProfile<1, 3, [SDTCisVT<0, i32>,
+																									 SDTCisVT<1, i32>,
+																									 SDTCisVT<2, i32>,
+																									 SDTCisVT<3, i32>]>;
+
 def SDT_TriCoreLCmp         : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
 																									 SDTCisSameAs<1, 2>,
 																									 SDTCisSameAs<2, 3>,
@@ -34,7 +40,10 @@ def SDT_TriCoreSelectCC     : SDTypeProfile<1, 4, [SDTCisSameAs<0, 1>,
 																									 SDTCisVT<4, i32>]>;
 def SDT_TriCoreWrapper      : SDTypeProfile<1, 1, [SDTCisSameAs<0, 1>,
 																									 SDTCisPtrTy<0>]>;
-def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
+//def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>,
+//																									 SDTCisVT<2, i32>]>;
+def SDT_TriCoreShift        : SDTypeProfile<1, 2, [SDTCisSameAs<0, 1>, 
+																									 SDTCisVT<0, i32>, 
 																									 SDTCisVT<2, i32>]>;
 
 def TriCorebrcc    : SDNode<"TriCoreISD::BR_CC", 
@@ -45,7 +54,9 @@ def TriCorelogiccmp: SDNode<"TriCoreISD::LOGICCMP",
 														SDT_TriCoreLCmp, [SDNPInGlue, SDNPOutGlue]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
 def TriCoreimask   : SDNode<"TriCoreISD::IMASK", SDT_TriCoreImask>;
-def TriCoresh      : SDNode<"TriCoreISD::SH", SDT_TriCoreShift, []>;
+def TriCoresh      : SDNode<"TriCoreISD::SH",  SDT_TriCoreShift>;
+def TriCoresha     : SDNode<"TriCoreISD::SHA", SDT_TriCoreShift>;
+def TriCoreextr    : SDNode<"TriCoreISD::EXTR", SDT_TriCoreExtract>;
 def TriCoreselectcc: SDNode<"TriCoreISD::SELECT_CC", SDT_TriCoreSelectCC, []>;
 
 def jmptarget : Operand<OtherVT> {
@@ -226,13 +237,13 @@ SDNode OpNode1, PatFrag OpNode2>
 	def rc: RC<0x8f, opcode1{6-0}, (outs DataRegs:$d), 
 			(ins DataRegs:$s1, u9imm:$const9),
 			!strconcat(asmstring, " $d, $s1, $const9"),
-			[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, immZExt9:$const9)))]>;
+			[(set DataRegs:$d, (OpNode2 (OpNode1 DataRegs:$s1, immZExt9:$const9)))]>;
 
 	let isCommutable = 1 in
 			def rr: RR<0x0f, opcode1, (outs DataRegs:$d), 
 			(ins DataRegs:$s1, DataRegs:$s2),
 			!strconcat(asmstring, " $d, $s1, $s2"),
-			[(set i32:$d, (OpNode2 (OpNode1 i32:$s1, i32:$s2)))]>;
+			[(set DataRegs:$d, (OpNode2 (OpNode1 DataRegs:$s1, DataRegs:$s2)))]>;
 }
 
 multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr, 
@@ -379,6 +390,16 @@ def IMASKrcpw :  RCPW<0xB7, 0b01, (outs ExtRegs:$d),
 		(ins u4imm:$const4, i32imm:$pos, i32imm:$width),
 		"imask $d, $const4, $pos, $width",
 		[(set ExtRegs:$d, (TriCoreimask immZExt4:$const4, imm:$pos, imm:$width))]>;
+
+def DEXTRrrpw :  RRPW<0x77, 0b00, (outs DataRegs:$d),
+		(ins DataRegs:$s1, DataRegs:$s2, i32imm:$pos),
+		"dextr $d, $s1, $s2, $pos",
+		[(set DataRegs:$d, (TriCoreextr DataRegs:$s1, DataRegs:$s2, immZExt4:$pos))]>;
+
+def EXTRrrpw :  RRPW<0x37, 0b10, (outs DataRegs:$d),
+		(ins DataRegs:$s1, i32imm:$pos, i32imm:$width),
+		"extr $d, $s1, $pos, $width",
+		[(set DataRegs:$d, (TriCoreextr DataRegs:$s1, immZExt4:$pos, immZExt4:$width))]>;
 //===----------------------------------------------------------------------===//
 // Load/Store Instructions
 //===----------------------------------------------------------------------===//
@@ -429,12 +450,21 @@ let Predicates = [isPointer] in
 // Shift Instructions
 //===----------------------------------------------------------------------===//
 
+// only const9[5:0] is of importance
 def SHrc : RC<0x8F,0x00, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
 		"sh $d, $s1, $const9",
-		[(set DataRegs:$d, (TriCoresh DataRegs:$s1, immSExt9:$const9))]>;	
+		[(set DataRegs:$d, (TriCoresh DataRegs:$s1, immSExt6:$const9))]>;	
 
-def SHrr : RR<0x01, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+def SHrr : RR<0x0F, 0x00, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 		"sh $d, $s1, $s2", [(set DataRegs:$d, (TriCoresh DataRegs:$s1, DataRegs:$s2))]>;
+
+def SHArc : RC<0x8F,0x01, (outs DataRegs:$d), (ins DataRegs:$s1, s9imm:$const9),
+		"sha $d, $s1, $const9",
+		[(set DataRegs:$d, (TriCoresha DataRegs:$s1, immSExt6:$const9))]>;	
+
+def SHArr : RR<0x0F, 0x01, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
+		"sha $d, $s1, $s2", [(set DataRegs:$d, (TriCoresha DataRegs:$s1, DataRegs:$s2))]>;
+
 
 
 //===----------------------------------------------------------------------===//
@@ -457,27 +487,7 @@ let isCall = 1, Defs = [A11], Uses = [A10] in
 //===----------------------------------------------------------------------===//
 // Extension Instructions
 //===----------------------------------------------------------------------===//
-def zext8  : PatFrag<(ops node:$src), (and node:$src, 0xff)>;
-def zext16 : PatFrag<(ops node:$src), (and node:$src, 0xffff)>;
 
-def ZEXT16r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
-                    "zxt16\t$dst",
-                    [(set DataRegs:$dst, (zext16 DataRegs:$src))]>;
-
-def ZEXT8r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
-                    "zxt8\t$dst",
-                    [(set DataRegs:$dst, (zext8 DataRegs:$src))]>;
-
-def sext8  : PatFrag<(ops node:$src), (sext_inreg node:$src, i8)>;
-def sext16 : PatFrag<(ops node:$src), (sext_inreg node:$src, i16)>;
-
-def SEXT16r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
-                    "sxt16\t$dst",
-                    [(set DataRegs:$dst, (sext16 DataRegs:$src))]>;
-
-def SEXT8r : T32<  (outs DataRegs:$dst), (ins DataRegs:$src),
-                    "sxt8\t$dst",
-                    [(set DataRegs:$dst, (sext8 DataRegs:$src))]>;
 
 //===----------------------------------------------------------------------===//
 // Compare Instructions
@@ -735,20 +745,181 @@ def : Pat<(i64 imm:$src),
           (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
           		           (MOVi32( LO32 imm:$src)), subreg_even)),
           		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
+//
+//def imm16_neg_XFORM : SDNodeXForm<imm,
+//[{
+//  return CurDAG->getTargetConstant(-N->getAPIntValue(), SDLoc(N), MVT::i32);
+//}]>;
+//
+
+def INVERT_VAL : SDNodeXForm<imm, [{
+	outs() << "vall: "<< N->getZExtValue() <<"\n";
+	return CurDAG->getTargetConstant(-N->getZExtValue(), SDLoc(N), MVT::i32);
+}]>;
+
+
+def SHIFTAMT : SDNodeXForm<imm, [{
+	outs() << "vall: "<< N->getZExtValue() <<"\n";
+	return CurDAG->getTargetConstant(N->getZExtValue() - 32, SDLoc(N), MVT::i32);
+}]>;
+
+def SHIFTAMT_POS : SDNodeXForm<imm, [{
+	outs() << "vall: "<< N->getZExtValue() <<"\n";
+	return CurDAG->getTargetConstant((32 - N->getZExtValue()), SDLoc(N), MVT::i32);
+}]>;
+
+def SHIFTAMT_NEG : SDNodeXForm<imm, [{
+	return CurDAG->getTargetConstant(-(N->getZExtValue() - 32), SDLoc(N), MVT::i32);
+}]>;
+
+def imm32_64 : PatLeaf<(imm),
+[{
+  uint64_t val = N->getZExtValue();
+  return val >= 32 && val < 64;
+}]>;
+
+def imm0_31 : PatLeaf<(imm),
+[{
+  uint64_t val = N->getZExtValue();
+	outs() <<"imm0_31: " << val << "\n";
+  return val > 0 && val < 32;
+}]>;
+
+// TODO: Also write a pattern when we have a zero shift
+def : Pat<(shl ExtRegs:$src, (i32 imm32_64:$amt)),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (SHrc (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+          		          		 (SHIFTAMT (imm32_64:$amt))), subreg_odd)),
+          		           (MOVrlc (i32 0)), subreg_even)>;
+
+def : Pat<(shl ExtRegs:$src, (i32 imm0_31:$amt)),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (DEXTRrrpw (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+          		          		 (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+														 	 (i32 imm0_31:$amt)), subreg_odd)),
+          									(SHrc (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+																 ( i32 imm0_31:$amt)), subreg_even)>;
+
+def : Pat<(srl ExtRegs:$src, (i32 imm0_31:$amt)),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (DEXTRrrpw (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+          		          		 (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+														 	 (SHIFTAMT_POS (imm0_31:$amt))), subreg_even)),
+          									(SHrc (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+																 (INVERT_VAL imm0_31:$amt)), subreg_odd)>;
+
+def : Pat<(srl ExtRegs:$src, (i32 imm32_64:$amt)),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (SHrc (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+          		          		 (SHIFTAMT_NEG (imm32_64:$amt))), subreg_even)),
+          		           (MOVrlc (i32 0)), subreg_odd)>;
+
+def : Pat<(sra ExtRegs:$src, (i32 imm32_64:$amt)),
+          (INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+           (SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+          		 (SHArc (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+          				 (SHIFTAMT_NEG (imm32_64:$amt))), subreg_even), subreg_even) 
+           , (i32 -31)), subreg_odd)>;
+
+def : Pat<(sra ExtRegs:$src, (i32 imm0_31:$amt)),
+          (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+          		           (DEXTRrrpw (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+          		          		 (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+														 	 (SHIFTAMT_POS (imm0_31:$amt))), subreg_even)),
+          									(SHArc (EXTRACT_SUBREG ExtRegs:$src, subreg_odd), 
+																 (INVERT_VAL imm0_31:$amt)), subreg_odd)>;
+
+def : Pat<(shl DataRegs:$src, (i32 0)),
+					(MOVrr DataRegs:$src)>;
 
 // This extracts the even register from an extended register
 def : Pat<(i32 (trunc ExtRegs:$src)), 
 					(EXTRACT_SUBREG ExtRegs:$src, subreg_even)>;
+
+// sext
+def : Pat<(sext DataRegs:$src),
+					(INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+							 (i32 DataRegs:$src), subreg_even)),
+							 (SHArc (i32 DataRegs:$src), (i32 -31)), subreg_odd)>;
+
+// sext_inreg for i16
+def : Pat<(sext_inreg DataRegs:$src, i16),
+          (MOVrr (i32 DataRegs:$src))>;
+
+// sext_inreg for i8
+def : Pat<(sext_inreg DataRegs:$src, i8),
+          (MOVrr (i32 DataRegs:$src))>;
+
+// sext_inreg from i8 to i64
+def : Pat<(sext_inreg ExtRegs:$src, i8),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+				(SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+						( EXTRrrpw (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+								(i32 0), (i32 8) ), subreg_even), subreg_even) 
+						, (i32 -31)), subreg_odd)>;	
+
+// sext_inreg from i16 to i64
+def : Pat<(sext_inreg ExtRegs:$src, i16),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+				(SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+						( EXTRrrpw (EXTRACT_SUBREG ExtRegs:$src, subreg_even), 
+								(i32 0), (i32 16) ), subreg_even), subreg_even) 
+						, (i32 -31)), subreg_odd)>;	
+
+// anyext
+def : Pat<(anyext DataRegs:$src),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+				(SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+						(i32 DataRegs:$src), subreg_even), subreg_even) 
+						, (i32 -31)), subreg_odd)>;
+
+// zext
+def : Pat<(zext DataRegs:$src),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+				(SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+						(i32 DataRegs:$src), subreg_even), subreg_even) 
+						, (i32 -31)), subreg_odd)>;		
 
 // This extracts the odd register from an extended register
 // odd_reg = (Extended Register >> 32)
 def : Pat<(i32 (trunc (srl ExtRegs:$src, (i32 32)))), 
 					(EXTRACT_SUBREG ExtRegs:$src, subreg_odd)>;
 
-//def : Pat<(and ExtRegs:$s1, ExtRegs:$s2), 
-//					(ANDrr ( (EXTRACT_SUBREG ExtRegs:$src, subreg_odd),
-//							(EXTRACT_SUBREG ExtRegs:$src, subreg_odd)>;
+def : Pat<(i64 (sextloadi32 addr:$offset)),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+		           (SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+		          		 (LDWbo addr:$offset), subreg_even), subreg_even) 
+		           , (i32 -31)), subreg_odd)>;	
 
+def : Pat<(i64 (zextloadi32 addr:$offset)),
+		(INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+		          		           (LDWbo addr:$offset), subreg_even)),
+		          		           (MOVrlc 0), subreg_odd)>;
+
+def : Pat<(i64 (sextloadi16 addr:$offset)),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+		           (SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+		          		 ( EXTRrrpw (LDHbo addr:$offset), 
+		          				 (i32 0), (i32 16) ), subreg_even), subreg_even) 
+		           , (i32 -31)), subreg_odd)>;	
+
+def : Pat<(i64 (zextloadi16 addr:$offset)),
+		(INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+		          		           (LDWbo addr:$offset), subreg_even)),
+		          		           (MOVrlc 0), subreg_odd)>;
+
+
+def : Pat<(i64 (sextloadi8 addr:$offset)),
+		(INSERT_SUBREG (i64 (IMPLICIT_DEF)),  
+		           (SHArc ( EXTRACT_SUBREG (INSERT_SUBREG (i64 (IMPLICIT_DEF)) ,
+		          		 ( EXTRrrpw (LDBbo addr:$offset), 
+		          				 (i32 0), (i32 8) ), subreg_even), subreg_even) 
+		           , (i32 -31)), subreg_odd)>;	
+
+def : Pat<(i64 (zextloadi8 addr:$offset)),
+		(INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
+		          		           (LDBUbo addr:$offset), subreg_even)),
+		          		           (MOVrlc 0), subreg_odd)>;
 
 def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
 		 (MOVi32 tglobaladdr:$dst)>;

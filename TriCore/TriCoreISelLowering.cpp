@@ -55,6 +55,8 @@ const char *TriCoreTargetLowering::getTargetNodeName(unsigned Opcode) const {
   case TriCoreISD::IMASK:    return "TriCoreISD::IMASK";
   case TriCoreISD::Wrapper:  return "TriCoreISD::Wrapper";
   case TriCoreISD::SH:       return "TriCoreISD::SH";
+  case TriCoreISD::SHA:      return "TriCoreISD::SHA";
+  case TriCoreISD::EXTR:     return "TriCoreISD::EXTR";
   }
 }
 
@@ -75,7 +77,8 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
 
 //  for (MVT VT : MVT::integer_valuetypes()) {
 //     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i8,  Expand);
-//     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i16,  Expand);
+//     setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i16,  Promote);
+//  		 setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i32, Expand);
 //   }
 
   // Nodes that require custom lowering
@@ -87,22 +90,53 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   setOperationAction(ISD::SHL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRL,           MVT::i32,   Custom);
   setOperationAction(ISD::SRA,           MVT::i32,   Custom);
-  //setOperationAction(ISD::AND,           MVT::i64,   Expand);
+  //setOperationAction(ISD::SRA,           MVT::i16,   Custom);
+  //setOperationAction(ISD::SIGN_EXTEND,   MVT::i16,   Expand);
 
+  //for (MVT VT : MVT::integer_valuetypes())
+  //setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i16,   Custom);
 }
 
 SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
 	switch (Op.getOpcode()) {
   default:								    llvm_unreachable("Unimplemented operand");
-  case ISD::GlobalAddress:    return LowerGlobalAddress(Op, DAG);
-  case ISD::BR_CC:            return LowerBR_CC(Op, DAG);
-  case ISD::SELECT_CC:        return LowerSELECT_CC(Op, DAG);
-  case ISD::SETCC:            return LowerSETCC(Op, DAG);
+  case ISD::GlobalAddress:    	return LowerGlobalAddress(Op, DAG);
+  case ISD::BR_CC:            	return LowerBR_CC(Op, DAG);
+  case ISD::SELECT_CC:        	return LowerSELECT_CC(Op, DAG);
+  case ISD::SETCC:            	return LowerSETCC(Op, DAG);
   case ISD::SHL:
   case ISD::SRL:
-  case ISD::SRA:              return LowerShifts(Op, DAG);
+  case ISD::SRA:              	return LowerShifts(Op, DAG);
+  //case ISD::SIGN_EXTEND:      	return LowerSIGN_EXTEND(Op, DAG);
+  //case ISD::SIGN_EXTEND_INREG:  return LowerSIGN_EXTEND_INREG(Op, DAG);
   }
 }
+
+SDValue TriCoreTargetLowering::LowerSIGN_EXTEND_INREG(SDValue Op,
+                                               SelectionDAG &DAG) const {
+
+	Op.dump();
+	return SDValue();
+}
+
+SDValue TriCoreTargetLowering::LowerSIGN_EXTEND(SDValue Op,
+                                               SelectionDAG &DAG) const {
+  SDValue inVal = Op.getOperand(0);
+  EVT inValVT = inVal.getValueType();
+  EVT VT      = Op.getValueType();
+  SDLoc dl(Op);
+  inVal.dump();
+  outs() << "inValVT: " << inValVT.getEVTString() <<"\n";
+  outs() << "VT: " << VT.getEVTString() <<"\n";
+  //assert(VT == MVT::i16 && "Only support i16 for now!");
+  //SDValue zero = DAG.getConstant(0, dl, MVT::i32);
+
+  return SDValue();
+//  return DAG.getNode(ISD::SIGN_EXTEND_INREG, dl, VT,
+//                       DAG.getNode(ISD::ANY_EXTEND, dl, VT, inVal),
+//                       DAG.getValueType(inVal.getValueType()));
+}
+
 
 bool TriCoreTargetLowering::isTruncateFree(Type *Ty1,
                                           Type *Ty2) const {
@@ -121,36 +155,41 @@ bool TriCoreTargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
 
 
 SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
-																									SelectionDAG &DAG) const {
+		SelectionDAG &DAG) const {
 	unsigned Opc = Op.getOpcode();
 	SDNode* N = Op.getNode();
 	SDValue shiftValue =  N->getOperand(1);
+
 	EVT VT = Op.getValueType();
 	SDLoc dl(N);
+	outs() << "Opc: " << Opc << "\n";
 	switch (Opc) {
 	default: llvm_unreachable("Invalid shift opcode!");
 	case ISD::SHL:
-				return DAG.getNode(TriCoreISD::SH, dl,
-						VT, N->getOperand(0), shiftValue);
+		return DAG.getNode(TriCoreISD::SH, dl, VT, N->getOperand(0), N->getOperand(1));
 	case ISD::SRL:
 	case ISD::SRA:
 		if(isa<ConstantSDNode>(shiftValue)) {
-			int64_t shiftVal = dyn_cast<ConstantSDNode>(shiftValue)->getSExtValue();
-			SDValue negShift = DAG.getTargetConstant(-shiftVal, dl, MVT::i32);
-			return DAG.getNode(TriCoreISD::SH, dl,
-					VT, N->getOperand(0), negShift);
+			outs() <<"shift constant\n";
+			int64_t shiftSVal = cast<ConstantSDNode>(shiftValue)->getSExtValue();
+			assert((shiftSVal>=-32 && shiftSVal<32) &&
+							"Shift can only be between -32 and +31");
+			ConstantSDNode *shiftSD = cast<ConstantSDNode>(N->getOperand(1));
+			uint64_t shiftVal = -shiftSD->getZExtValue();
+			SDValue negShift = DAG.getConstant(shiftVal, dl, MVT::i32);
+
+			unsigned Opcode = (Opc== ISD::SRL) ? TriCoreISD::SH : TriCoreISD::SHA;
+
+			return DAG.getNode(Opcode, dl, VT, N->getOperand(0), negShift);
 		}
 		else { // shift value is stored in a register
 
-			// get the number of operands
-			SDValue rSubNode;
-			SDNode *subResult = N->getOperand(1).getNode();
-			SDVTList VTs = DAG.getVTList(MVT::i32);
-			SDValue Ops[] = { SDValue(subResult, 0),
-												DAG.getTargetConstant(0, dl, MVT::i32) };
-
-			rSubNode = DAG.getNode(TriCoreISD::SUB, dl, VTs, Ops);
-			return DAG.getNode(TriCoreISD::SH, dl, VT, N->getOperand(0), rSubNode);
+			SDValue regOP = N->getOperand(1);
+			// Create subtraction node
+			SDValue zero = DAG.getConstant(0, dl, MVT::i32);
+			SDValue rsubNode = DAG.getNode(ISD::SUB, dl, MVT::i32, zero, regOP);
+			unsigned Opcode = (Opc== ISD::SRL) ? TriCoreISD::SH : TriCoreISD::SHA;
+			return DAG.getNode(Opcode, dl, MVT::i32, N->getOperand(0), rsubNode);
 		}
 	}
 }

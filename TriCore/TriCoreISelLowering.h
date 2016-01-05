@@ -46,12 +46,14 @@ enum NodeType {
 	// depends on the signed-ness on the shift value. A negytive value is
 	// a right shift, and vice versa.
 	SH,
+	// Arthimatic Shift
+	SHA,
 	// Loads ternary operators
 	SELECT_CC,
 	LOGICCMP,
 	IMASK,
-	SUB
-};
+	EXTR
+	};
 }
 
 //===--------------------------------------------------------------------===//
@@ -113,7 +115,9 @@ private:
   // Lower Shift Instruction
   SDValue LowerShifts(SDValue Op, SelectionDAG &DAG) const;
 
-  //SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerSIGN_EXTEND_INREG(SDValue Op, SelectionDAG &DAG) const;
 
   bool isTruncateFree(Type *Ty1, Type *Ty2) const;
   bool isTruncateFree(EVT VT1, EVT VT2) const;

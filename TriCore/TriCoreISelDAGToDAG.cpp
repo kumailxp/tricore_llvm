@@ -502,48 +502,16 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 		return CurDAG->getMachineNode(TriCore::ADDrc, dl, MVT::i32, TFI,
 				CurDAG->getTargetConstant(0, dl, MVT::i32));
 	}
-	case TriCoreISD::SUB: {
-		SDValue op1 = N->getOperand(0);
-		SDValue zeroConst = CurDAG->getTargetConstant(0, dl, MVT::i32);
-		if (N->hasOneUse()) {
-			return CurDAG->SelectNodeTo(N, TriCore::RSUBsr, MVT::i32,
-					op1, zeroConst);
-		}
-		return CurDAG->getMachineNode(TriCore::RSUBsr, dl, MVT::i32,
-				op1, zeroConst);
-	}
 	case ISD::STORE: {
 		ptyType = false;
 		ptyType = (N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR) ?
 				true : false;
 		break;
 	}
-//	case ISD::LOAD:{
-//		LoadSDNode *LD = cast<LoadSDNode>(N);
-//		LD->dump();
-//		outs()<<"LD getAlignment: " << LD->getAlignment() << "\n";
-//		outs()<<"LD getOpcode: " << LD->getOpcode() << "\n";
-//		outs()<<"LD getNumOp: " << LD->getNumOperands() << "\n";
-//		outs()<<"LD getExtensionType: " << (int)LD->getExtensionType() << "\n";
-//		outs()<<"LD getEVTString: " << LD->getMemoryVT().getEVTString() << "\n";
-//		outs()<<"LD getOriginalAlignment: " << LD->getOriginalAlignment() << "\n";
-//		outs()<<"LD HasDebugValue: " << LD->getHasDebugValue() << "\n";
-////		LD->getOperand(0).dump();
-////		LD->getOperand(1).dump();
-////		LD->getOperand(2).dump();
-//		SDValue chain =  LD->getChain();
-//		chain.dump();
-//		//N->dump();
-//		break;
-//	}
-//	case ISD::SEXTLOAD: {
-////		outs()<<"Signextend\n";
-////		outs()<<"LD getNumOp: " << N->getNumOperands() << "\n";
-//		break;
-//	}
+
 }
 
-		SDNode *ResNode = SelectCode(N);
+	SDNode *ResNode = SelectCode(N);
 
 	DEBUG(errs() << "=> ");
 	if (ResNode == nullptr || ResNode == N)

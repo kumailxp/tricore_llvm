@@ -59,7 +59,7 @@ def cc_val : Operand<i32> {
   let PrintMethod = "printCondCode";
 }
 
-def memsrc : Operand<iPTR> {
+def memsrc : Operand<i32> {
   let MIOperandInfo = (ops AddrRegs, i32imm);
   let PrintMethod = "printAddrModeMemSrc";
   let EncoderMethod = "getMemSrcValue";
@@ -70,8 +70,9 @@ def memsrc : Operand<iPTR> {
 //===----------------------------------------------------------------------===//
 
 //Operands
-def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
 def s4imm      : Operand<i32> { let PrintMethod = "printSExtImm<4>";  }
+def s6imm      : Operand<i32> { let PrintMethod = "printSExtImm<6>";  }
+def s9imm      : Operand<i32> { let PrintMethod = "printSExtImm<9>";  }
 def s16imm     : Operand<i32> { let PrintMethod = "printSExtImm<16>"; }
 def s24imm     : Operand<i32> { let PrintMethod = "printSExtImm<24>"; }
 def u8imm      : Operand<i32> { let PrintMethod = "printZExtImm<8>";  }
@@ -82,6 +83,7 @@ def u16imm     : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
 
 //Nodes
 def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
+def immSExt6  : PatLeaf<(imm), [{ return isInt<6>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
 def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 def immSExt24  : PatLeaf<(imm), [{ return isInt<24>(N->getSExtValue()); }]>;
