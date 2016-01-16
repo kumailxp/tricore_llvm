@@ -709,7 +709,6 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 					 .addImm(Lo16);
 		}
 		else {
-			outs()<<"MO.getGlobal()\n";
 			const GlobalValue *GV = MO.getGlobal();
 			auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
 								.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead));

@@ -34,7 +34,7 @@ using namespace llvm;
 // TriCoreFrameLowering:
 //===----------------------------------------------------------------------===//
 TriCoreFrameLowering::TriCoreFrameLowering()
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 4, 0) {
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, 8, 0) {
   // Do nothing
 }
 
@@ -105,7 +105,7 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
 
   if (TFI->hasFP(MF)) {
   	MachineFunction::iterator I;
-  	BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVAArr), TriCore::A14)
+  	BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVAAsrr), TriCore::A14)
 	      			.addReg(TriCore::A10);
 
   	// Mark the FramePtr as live-in in every block except the entry

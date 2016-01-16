@@ -29,8 +29,8 @@ using namespace llvm;
 */
 static std::string computeDataLayout(const Triple &TT, StringRef CPU,
                                      const TargetOptions &Options) {
-  return "e-m:e-p:32:32-i8:8:8-i16:16:16-i64:32-f32:32-f64:32-a:0:32-n32:64";
-  //"e-m:e-p:32:32-i1:8:32-i8:8:8-i16:16:16-i64:64-f32:32-f64:32-a:0:32-n32:64";
+  return "e-m:e-p:32:32-a:8:16-n32";
+//  return "e-m:e-p:32:32-i8:8:8-i16:16:16-i64:32-f32:32-f64:32-a:8:16-n32:64-S32";
 }
 
 /** 

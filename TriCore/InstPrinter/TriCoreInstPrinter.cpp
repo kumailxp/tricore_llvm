@@ -87,12 +87,15 @@ void TriCoreInstPrinter::printPCRelImmOperand(const MCInst *MI, unsigned OpNo,
 template <unsigned bits>
 void TriCoreInstPrinter::printSExtImm(const MCInst *MI, unsigned OpNo,
                                        raw_ostream &O) {
-  int64_t Value = MI->getOperand(OpNo).getImm();
- Value = SignExtend32<bits>(Value);
-  //outs()<< "Value: "<< Value <<"\n";
-  assert(isInt<bits>(Value) && "Invalid simm argument");
 
-  O << Value;
+ //MI->getOperand(OpNo).dump();
+ if(! MI->getOperand(OpNo).isImm()) return;
+ int64_t Value = MI->getOperand(OpNo).getImm();
+ Value = SignExtend32<bits>(Value);
+ //outs()<< "Value: "<< Value <<"\n";
+ assert(isInt<bits>(Value) && "Invalid simm argument");
+
+ O << Value;
 }
 
 template <unsigned bits>

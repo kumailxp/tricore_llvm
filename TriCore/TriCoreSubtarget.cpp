@@ -25,8 +25,17 @@ using namespace llvm;
 
 void TriCoreSubtarget::anchor() {}
 
+static cl::opt<bool> UseSmallSectionOpt
+                ("tricore-use-small-section", cl::Hidden, cl::init(false),
+                 cl::desc("Use small section. Only work when -relocation-model="
+                 "static. pic always not use small section."));
+
 TriCoreSubtarget::TriCoreSubtarget(const Triple &TT, StringRef CPU, StringRef FS,
                            TriCoreTargetMachine &TM)
     : TriCoreGenSubtargetInfo(TT, CPU, FS),
-      DL("e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:32-f32:32-f64:32-a:0:32-n32"),
-      InstrInfo(), TLInfo(TM), TSInfo(), FrameLowering() {}
+      DL("e-m:e-p:32:32-a:8:16-n32"),
+      InstrInfo(), TLInfo(TM), TSInfo(), FrameLowering() {
+
+	 UseSmallSection = UseSmallSectionOpt;
+
+}

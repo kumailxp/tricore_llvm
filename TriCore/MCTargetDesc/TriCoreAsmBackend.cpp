@@ -34,7 +34,7 @@ class TriCoreELFObjectWriter : public MCELFObjectTargetWriter {
 public:
   TriCoreELFObjectWriter(uint8_t OSABI)
       : MCELFObjectTargetWriter(/*Is64Bit*/ false, OSABI, 
-                                /*ELF::EM_TriCore*/ ELF::EM_ARM,
+                                /*ELF::EM_TriCore*/ ELF::EM_TRICORE,
                                 /*HasRelocationAddend*/ false) {}
 };
 
@@ -101,6 +101,7 @@ public:
 static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
                                  MCContext *Ctx = NULL) {
   unsigned Kind = Fixup.getKind();
+  outs() << "Fixup: " << Fixup.getKind() << "\n";
   switch (Kind) {
   default:
     llvm_unreachable("Unknown fixup kind!");

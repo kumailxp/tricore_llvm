@@ -111,7 +111,8 @@ def ADDrc : RC<0x8B, 0x00, (outs DataRegs:$d),
 		[(set DataRegs:$d, (add DataRegs:$s1, immSExt9:$const9))]>;
 
 def ADDIrlc : RLC<0x1B, (outs DataRegs:$d),
-		(ins DataRegs:$s1, s16imm:$const16),
+		(ins DataRegs:$s1, i32imm:$const16), // FIXME: this should be an i32 Operands
+																				 // with a predicate condition. Working now
 		"addi $d, $s1, $const16",
 		[(set DataRegs:$d, (add DataRegs:$s1, immSExt16:$const16))]>;
 
@@ -190,9 +191,9 @@ def SUBi64 : Pseudo<(outs ExtRegs:$d),
 let Defs = [A10], Uses = [A10] in
 def SUBAsc : SC<0x20, (outs), (ins u8imm:$const8), "sub.a %a10, $const8", []>;
 
-def SUBArr : RR<0x0B, 0x08, (outs AddrRegs:$d), 
-		(ins AddrRegs:$src1, AddrRegs:$src2), "sub.a $d, $src1, $src2",
-		[(set AddrRegs:$d, (sub AddrRegs:$src1, AddrRegs:$src2) )]>;
+def SUBArr : RR<0x01, 0x02, (outs AddrRegs:$d), 
+		(ins AddrRegs:$s1, AddrRegs:$s2), "sub.a $d, $s1, $s2",
+		[(set AddrRegs:$d, (sub AddrRegs:$s1, AddrRegs:$s2) )]>;
 
 def RSUBrc : RC<0x8B, 0x08, (outs DataRegs:$d), 
 							(ins DataRegs:$s1, s9imm:$const9) ,"rsub $d, $s1, $const9",
@@ -203,15 +204,20 @@ let Constraints="$d = $s1" in
 		"rsub $d", [(set DataRegs:$d, (sub (i32 0), DataRegs:$s1)) ]>;
 
 let Defs=[PSW] in {
-	def MULrr : RR2<0x73, 0x00A, (outs DataRegs:$d),
-			(ins DataRegs:$s2, DataRegs:$s1), "mul $d, $s2, $s1",
+	
+	let Constraints="$d = $fksrc" in
+	def MULsrr : SRR<0xE2, (outs DataRegs:$d),
+				(ins DataRegs:$fksrc, DataRegs:$s2), "mul $d, $s2",
+				[(set DataRegs:$d, (mul DataRegs:$fksrc, DataRegs:$s2) )]>;
+	
+	def MULrr2 : RR2<0x73, 0x00A, (outs DataRegs:$d),
+			(ins DataRegs:$s1, DataRegs:$s2), "mul $d, $s1, $s2",
 			[(set DataRegs:$d, (mul DataRegs:$s1, DataRegs:$s2) )]>;
 
 	def MULrc : RC<0x53, 0x001, (outs DataRegs:$d),
 			(ins DataRegs:$s1, s9imm:$const9),  "mul $d, $s1, $const9",
 			[(set DataRegs:$d, (mul DataRegs:$s1, immSExt9:$const9) )]>;
-} // let Defs=[PSW]
-
+}
 //===----------------------------------------------------------------------===//
 // Logical Instructions
 //===----------------------------------------------------------------------===//
@@ -250,10 +256,11 @@ multiclass Logical16<bits<8> opcode1_sc, bits<8> opcode1_srr,
 string asmstring, SDNode OpNode>
 {
 
-	def sc: SC<opcode1_sc, (outs DataRegs:$d), 
-			(ins DataRegs:$s1, u8imm:$const8),
-			!strconcat(asmstring, " $d, $s1, $const8"),
-			[(set DataRegs:$d, (OpNode DataRegs:$s1, immZExt8:$const8))]>; 
+	let Uses=[D15], Defs=[D15] in
+			def sc: SC<opcode1_sc, (outs), 
+					(ins u8imm:$const8),
+					!strconcat(asmstring, " %d15, $const8"),
+					[(set D15, (OpNode D15, immZExt8:$const8))]>; 
 
 	let Constraints = "$s1 = $d" in
 			def srr: SRR<opcode1_srr, (outs DataRegs:$d), 
@@ -374,9 +381,16 @@ class MOV_CONST<bits<8> opcode, string opstr, dag ins, list<dag> pattern>
 def MOVrr   : MOV_RR<0x0B, 0x1F, "mov", DataRegs, DataRegs>;
 def MOVDrr  : MOV_RR<0x01, 0x4C, "mov.d", DataRegs, AddrRegs>;
 def MOVArr  : MOV_RR<0x01, 0x63, "mov.a", AddrRegs, DataRegs>;
+
+def MOVAAsrr : SRR<0x40, (outs AddrRegs:$d),
+												(ins AddrRegs:$s2),
+												"mov.aa $d, $s2", [] >;
+
 def MOVAArr : MOV_RR<0x01, 0x00, "mov.aa", AddrRegs, AddrRegs>;
 def MOVrlc  : MOV_CONST<0x3B,"mov", (ins s16imm:$const16) ,
-              [(set DataRegs:$d, immSExt16:$const16)]>;
+              [(set DataRegs:$d, immSExt16:$const16)]> {
+	//let Inst{11-8} = 0b0001;
+}
 def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
               [(set DataRegs:$d, immZExt16:$const16)]>;
 
@@ -407,44 +421,54 @@ def EXTRrrpw :  RRPW<0x37, 0b10, (outs DataRegs:$d),
 class AlignedLoad<bits<6> op2, string opstr, PatFrag PF, 
 									RegisterClass RC = DataRegs, ValueType intType = i32>
 								: BO<0x09, op2, (outs RC:$d),
-								 (ins memsrc:$off10),
-								 !strconcat(opstr, " $d, $off10"),
-								 [(set RC:$d, (intType (PF addr:$off10)))]>{ let mayLoad = 1; }
+								 (ins memsrc:$memri),
+								 !strconcat(opstr, " $d, $memri"),
+								 [(set RC:$d, (intType (PF addr:$memri)))]>{ let mayLoad = 1; }
 
 def LDBbo  : AlignedLoad<0x20, "ld.b"  , sextloadi8>;
 def LDBUbo : AlignedLoad<0x21, "ld.bu" , zextloadi8>;
 def LDHbo  : AlignedLoad<0x22, "ld.h"  , sextloadi16>;
 def LDHUbo : AlignedLoad<0x23, "ld.hu" , zextloadi16>;
-def LDWbo  : AlignedLoad<0x24, "ld.w"  , load>;
+//def LDWbo  : AlignedLoad<0x24, "ld.w"  , load>;
 def LDDbo  : AlignedLoad<0x25, "ld.d"  , load, ExtRegs, i64>;
 
+def LDWbo : BOL<0x19, (outs DataRegs:$d),
+		 (ins memsrc:$memri),
+		 "ld.w $d, $memri",
+		 [(set DataRegs:$d, (load addr:$memri))]>{ let mayLoad = 1; }
 
 def : Pat<(extloadi8 addr:$src), (LDBbo addr:$src)>;
 def : Pat<(extloadi16 addr:$src), (LDHbo addr:$src)>;
 
 let Predicates = [isnotPointer] in {
-	def STBbo : BO<0x89, 0x20,(outs), (ins DataRegs:$d, memsrc:$off10),
-			"st.b $off10, $d",
-			[(truncstorei8 DataRegs:$d, addr:$off10)]>;
+	def STBbo : BO<0x89, 0x20,(outs), (ins DataRegs:$d, memsrc:$memri),
+			"st.b $memri, $d",
+			[(truncstorei8 DataRegs:$d, addr:$memri)]>;
 
-	def STHbo : BO<0x89, 0x22,(outs), (ins DataRegs:$d, memsrc:$off10),
-			"st.h $off10, $d",
-			[(truncstorei16 DataRegs:$d, addr:$off10)]>;
+	def STHbo : BO<0x89, 0x22,(outs), (ins DataRegs:$d, memsrc:$memri),
+			"st.h $memri, $d",
+			[(truncstorei16 DataRegs:$d, addr:$memri)]>;
 
-	def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$off10),
-			"st.w $off10, $d",
-			[(store DataRegs:$d, addr:$off10)]>;
+	def STWbo : BO<0x89, 0x24, (outs), (ins DataRegs:$d, memsrc:$memri),
+			"st.w $memri, $d",
+			[(store DataRegs:$d, addr:$memri)]>;
 
-	def STDbo : BO<0x89, 0x25, (outs), (ins ExtRegs:$d, memsrc:$off10),
-			"st.d $off10, $d",
-			[(store ExtRegs:$d, addr:$off10)]>;	
+	def STDbo : BO<0x89, 0x25, (outs), (ins ExtRegs:$d, memsrc:$memri),
+			"st.d $memri, $d",
+			[(store ExtRegs:$d, addr:$memri)]>;	
+	
+	def : Pat<(truncstorei32 ExtRegs:$d, addr:$memri), 
+			 (STWbo (EXTRACT_SUBREG ExtRegs:$d, subreg_even), addr:$memri)>;
+	
+	def : Pat<(truncstorei8 ExtRegs:$d, addr:$memri), 
+				 (STWbo (ANDrc (EXTRACT_SUBREG ExtRegs:$d, subreg_even), (i32 255)), addr:$memri)>;	
 } // let Predicates = [isnotPointer]
 
 
 let Predicates = [isPointer] in 
-		def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$off10),
-		"st.a $off10, $d",
-		[(store i32:$d, addr:$off10)]>;
+		def STAbo : BO<0x89, 0x26, (outs), (ins AddrRegs:$d, memsrc:$memri),
+		"st.a $memri, $d",
+		[(store i32:$d, addr:$memri)]>;
 
 //===----------------------------------------------------------------------===//
 // Shift Instructions
@@ -471,8 +495,12 @@ def SHArr : RR<0x0F, 0x01, (outs DataRegs:$d), (ins DataRegs:$s1, DataRegs:$s2),
 // Return Instructions
 //===----------------------------------------------------------------------===//
 
-let isTerminator = 1, isReturn = 1, isBarrier = 1 in 
-  def RET : T32<(outs), (ins variable_ops), "ret",  [(TriCoreRetFlag)]>;
+let isTerminator = 1, isReturn = 1, 
+		isBarrier = 1, Uses =[PCXI, PSW, FCX],
+		Defs= [PSW, PCXI, PC, FCX] in 
+  def RETsr : T16<0x00, (outs), (ins variable_ops), "ret",  [(TriCoreRetFlag)]> {
+  	let Inst{15-12} = 0x9; 
+  }
 
 
 //===----------------------------------------------------------------------===//
@@ -737,20 +765,10 @@ def HI32 : SDNodeXForm<imm, [{
 	return CurDAG->getTargetConstant((uint32_t) (N->getZExtValue()>>32), SDLoc(N), MVT::i32);
 }]>; 
 
-//def imm_is_zero : Operand<i64>, PatLeaf<(imm), [{
-//	return !(N->getSExtValue()==0);
-//}]>;
-
 def : Pat<(i64 imm:$src),
           (INSERT_SUBREG( i64 (INSERT_SUBREG (i64 (IMPLICIT_DEF)), 
           		           (MOVi32( LO32 imm:$src)), subreg_even)),
           		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
-//
-//def imm16_neg_XFORM : SDNodeXForm<imm,
-//[{
-//  return CurDAG->getTargetConstant(-N->getAPIntValue(), SDLoc(N), MVT::i32);
-//}]>;
-//
 
 def INVERT_VAL : SDNodeXForm<imm, [{
 	outs() << "vall: "<< N->getZExtValue() <<"\n";

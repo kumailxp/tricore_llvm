@@ -117,6 +117,7 @@ public:
 
 bool TriCoreDAGToDAGISel::ptyType = false;
 bool TriCoreDAGToDAGISel::isPointer() { return ptyType;}
+
 /// MatchWrapper - Try to match MSP430ISD::Wrapper node into an addressing mode.
 /// These wrap things that will resolve down into a symbol reference.  If no
 /// match is possible, this returns true, otherwise it returns false.
@@ -357,6 +358,8 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 	  	 * imask instruction. Only if it fails, then we proceed to generate
 	  	 * pseudo moves.
 	  	 */
+
+	  	outs() << ConstVal->getValueType(0).getEVTString() << "\n";
 	  	uint32_t lowerByte 	= ImmVal & 0x00000000ffffffff;
 	  	uint32_t higherByte = ImmVal>>32;
 			uint64_t width = 0;
@@ -451,7 +454,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 
 	  if ((ImmHi == 0) && ImmLo) {
 	  	if (ImmSVal >=0 && ImmSVal < 32768)
-	  	  return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstEImm);
+	  	  return CurDAG->getMachineNode(TriCore::MOVrlc, N, MVT::i32, ConstSImm);
 	  	else if(ImmSVal >=32768 && ImmSVal < 65536)
 	  		return CurDAG->getMachineNode(TriCore::MOVUrlc, N, MVT::i32, ConstEImm);
 

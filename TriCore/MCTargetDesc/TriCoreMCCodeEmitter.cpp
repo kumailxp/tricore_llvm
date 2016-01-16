@@ -59,19 +59,25 @@ public:
                           SmallVectorImpl<MCFixup> &Fixups,
                           const MCSubtargetInfo &STI) const;
 
-  void EmitByte(unsigned char C, raw_ostream &OS) const { OS << (char)C; }
+  void EmitByte(unsigned char C, raw_ostream &OS) const
+  {
+  	OS << (char)C;
+  }
 
   void EmitConstant(uint64_t Val, unsigned Size, raw_ostream &OS) const {
     // Output the constant in little endian byte order.
-    for (unsigned i = 0; i != Size; ++i) {
-      EmitByte(Val & 255, OS);
-      Val >>= 8;
-    }
+
+  	for (unsigned i = 0; i != Size; ++i) {
+  	      EmitByte((Val >> (i * 8)) & 0xff, OS);
+  	    }
   }
-  
+
   void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
+
+
+
 };
 
 } // end anonymous namespace
@@ -88,7 +94,7 @@ unsigned TriCoreMCCodeEmitter::getMachineOpValue(const MCInst &MI,
                                              const MCOperand &MO,
                                              SmallVectorImpl<MCFixup> &Fixups,
                                              const MCSubtargetInfo &STI) const {
-  if (MO.isReg()) {
+	if (MO.isReg()) {
     return CTX.getRegisterInfo()->getEncodingValue(MO.getReg());
   }
 
@@ -132,26 +138,40 @@ unsigned TriCoreMCCodeEmitter::getMachineOpValue(const MCInst &MI,
 unsigned TriCoreMCCodeEmitter::getMemSrcValue(const MCInst &MI, unsigned OpIdx,
                                           SmallVectorImpl<MCFixup> &Fixups,
                                           const MCSubtargetInfo &STI) const {
-  unsigned Bits = 0;
+  signed Bits = 0;
   const MCOperand &RegMO = MI.getOperand(OpIdx);
   const MCOperand &ImmMO = MI.getOperand(OpIdx + 1);
-  assert(ImmMO.getImm() >= 0);
-  Bits |= (getMachineOpValue(MI, RegMO, Fixups, STI) << 12);
-  Bits |= (unsigned)ImmMO.getImm() & 0xfff;
-  return Bits;
+  //assert(ImmMO.getImm() >= 0);
+  unsigned Reg = getMachineOpValue(MI, RegMO, Fixups, STI);
+  int32_t offset = Reg | (ImmMO.getImm() << 4);
+  return offset;
 }
+
+
 
 void TriCoreMCCodeEmitter::encodeInstruction(const MCInst &MI, raw_ostream &OS,
                                          SmallVectorImpl<MCFixup> &Fixups,
                                          const MCSubtargetInfo &STI) const {
   const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
-  if (Desc.getSize() != 4) {
+
+  //outs() << "Desc size: "<< Desc.getSize() << "\n";
+  if ( !(Desc.getSize() == 4 || Desc.getSize() == 2) ){
     llvm_unreachable("Unexpected instruction size!");
   }
 
-  const uint32_t Binary = getBinaryCodeForInstr(MI, Fixups, STI);
+  uint32_t Binary = getBinaryCodeForInstr(MI, Fixups, STI);
 
-  EmitConstant(Binary, Desc.getSize(), OS);
+  outs() << "Binary: "; outs().write_hex(Binary)<<"\n";
+
+  //EmitConstant(Binary, Desc.getSize(), OS);
+
+  if (Desc.getSize() == 4) {
+      EmitConstant(Binary & 0xffff, 2, OS);
+      EmitConstant(Binary >> 16, 2, OS);
+    }
+  else
+      EmitConstant(Binary, 2, OS);
+
   ++MCNumEmitted;
 }
 

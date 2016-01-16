@@ -63,10 +63,10 @@ class T16<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
 class SRR<bits<8> op1, dag outs, dag ins, string asmstr, list<dag> pattern>
     : T16<op1, outs, ins, asmstr, pattern> {
 
-  bits<4> s1;
   bits<4> s2;
+  bits<4> d;
   
-  let Inst{11-8} = s1;
+  let Inst{11-8} = d;
   let Inst{15-12} = s2; 
 }
 
@@ -178,7 +178,7 @@ class RR2<bits<8> op1, bits<12> op2, dag outs, dag ins, string asmstr,
 class RLC<bits<8> op1, dag outs, dag ins, string asmstr,
                  list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
   
-  bits<4> s1;
+  bits<4> s1 = 0;
   bits<16> const16;
   bits<4> d;
   
@@ -296,15 +296,14 @@ class RRPW<bits<8> op1, bits<2> op2 , dag outs, dag ins, string asmstr,
 //===----------------------------------------------------------------------===//
 class BOL<bits<8> op1, dag outs, dag ins, string asmstr, 
                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
-  bits<16> off16;
-  bits<4> s2;
-  bits<4> s1;
+  bits<20> memri;
+  bits<4> d;
   let Inst{7-0} = op1;
-  let Inst{11-8} = s1;
-  let Inst{15-12} = s2;
-  let Inst{21-16} = off16{5-0};
-  let Inst{27-22} = off16{15-10};
-  let Inst{31-28} = off16{9-6};
+  let Inst{11-8} = d;
+  let Inst{15-12} = memri{3-0};
+  let Inst{21-16} = memri{9-4};
+  let Inst{27-22} = memri{19-14};
+  let Inst{31-28} = memri{13-10};
 }
 
 //===----------------------------------------------------------------------===//
@@ -312,15 +311,14 @@ class BOL<bits<8> op1, dag outs, dag ins, string asmstr,
 //===----------------------------------------------------------------------===//
 class BO<bits<8> op1, bits<6> op2, dag outs, dag ins, string asmstr, 
                 list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
-  bits<10> off10;
-  bits<4> s1;
+  bits<14> memri;
   bits<4> d;
   let Inst{7-0} = op1;
-  let Inst{11-8} = s1;
-  let Inst{15-12} = d;
-  let Inst{21-16} = off10{5-0};
+  let Inst{11-8} = d;
+  let Inst{15-12} = memri{3-0};
+  let Inst{21-16} = memri{9-4};
   let Inst{27-22} = op2;
-  let Inst{31-28} = off10{9-6};
+  let Inst{31-28} = memri{13-10};
 }
 
 // TriCore pseudo instructions format

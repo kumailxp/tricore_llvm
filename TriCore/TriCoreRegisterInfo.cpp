@@ -55,6 +55,7 @@ BitVector TriCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const 
   Reserved.set(TriCore::A10);
   Reserved.set(TriCore::A11);
   Reserved.set(TriCore::PSW);
+  Reserved.set(TriCore::FCX);
   return Reserved;
 }
 

@@ -21,6 +21,7 @@ add_llvm_target(TriCoreCodeGen
   TriCoreAsmPrinter.cpp
   TriCoreMCInstLower.cpp
   TriCoreCallingConvHook.cpp
+  TriCoreTargetObjectFile.cpp
   )
 
 add_subdirectory(InstPrinter)

@@ -66,6 +66,8 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
   addRegisterClass(MVT::i32, &TriCore::DataRegsRegClass);
   addRegisterClass(MVT::i32, &TriCore::AddrRegsRegClass);
   addRegisterClass(MVT::i64, &TriCore::ExtRegsRegClass);
+  addRegisterClass(MVT::i32, &TriCore::PSRegsRegClass);
+
 
 
   // Compute derived properties from the register classes
@@ -111,48 +113,6 @@ SDValue TriCoreTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) con
   //case ISD::SIGN_EXTEND_INREG:  return LowerSIGN_EXTEND_INREG(Op, DAG);
   }
 }
-
-SDValue TriCoreTargetLowering::LowerSIGN_EXTEND_INREG(SDValue Op,
-                                               SelectionDAG &DAG) const {
-
-	Op.dump();
-	return SDValue();
-}
-
-SDValue TriCoreTargetLowering::LowerSIGN_EXTEND(SDValue Op,
-                                               SelectionDAG &DAG) const {
-  SDValue inVal = Op.getOperand(0);
-  EVT inValVT = inVal.getValueType();
-  EVT VT      = Op.getValueType();
-  SDLoc dl(Op);
-  inVal.dump();
-  outs() << "inValVT: " << inValVT.getEVTString() <<"\n";
-  outs() << "VT: " << VT.getEVTString() <<"\n";
-  //assert(VT == MVT::i16 && "Only support i16 for now!");
-  //SDValue zero = DAG.getConstant(0, dl, MVT::i32);
-
-  return SDValue();
-//  return DAG.getNode(ISD::SIGN_EXTEND_INREG, dl, VT,
-//                       DAG.getNode(ISD::ANY_EXTEND, dl, VT, inVal),
-//                       DAG.getValueType(inVal.getValueType()));
-}
-
-
-bool TriCoreTargetLowering::isTruncateFree(Type *Ty1,
-                                          Type *Ty2) const {
-  if (!Ty1->isIntegerTy() || !Ty2->isIntegerTy())
-    return false;
-
-  return (Ty1->getPrimitiveSizeInBits() > Ty2->getPrimitiveSizeInBits());
-}
-
-bool TriCoreTargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
-  if (!VT1.isInteger() || !VT2.isInteger())
-    return false;
-
-  return (VT1.getSizeInBits() > VT2.getSizeInBits());
-}
-
 
 SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
 		SelectionDAG &DAG) const {
@@ -204,7 +164,7 @@ static SDValue EmitCMP(SDValue &LHS, SDValue &RHS, ISD::CondCode CC,
   SDValue TargetCC;
   TriCoreCC::CondCodes TCC = TriCoreCC::COND_INVALID;
 
-  outs() << "CC: " << (int)CC << "\n";
+  //outs() << "CC: " << (int)CC << "\n";
 
   switch (CC) {
   default: llvm_unreachable("Invalid integer condition!");
@@ -406,11 +366,14 @@ SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG)
 {
 
 	EVT VT = Op.getValueType();
-  GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
-  int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
-  SDValue TargetAddr =
-      DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
-  return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
+
+ GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
+ int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+ SDValue TargetAddr =
+     DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
+
+
+ return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
 }
 
 
