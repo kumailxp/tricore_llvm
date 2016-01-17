@@ -688,8 +688,8 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 			if (hiShift < 0)
 					hiShift = 65536 + hiShift;
 
-			const unsigned Imm = MO.getImm();
-			const unsigned Lo16 = Imm & 0xffff;
+			const int64_t Imm = MO.getImm();
+			const int64_t Lo16 = Imm & 0xffff;
 			//const unsigned Hi16 = (Imm >> 16) & 0xffff;
 			//HI16 = HI16.addImm(hiShift);
 
@@ -706,7 +706,7 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 				BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
 					 .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 					 .addReg(DstReg)
-					 .addImm(Lo16);
+					 .addImm(ImmLo_ext64);
 		}
 		else {
 			const GlobalValue *GV = MO.getGlobal();

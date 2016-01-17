@@ -387,10 +387,15 @@ def MOVAAsrr : SRR<0x40, (outs AddrRegs:$d),
 												"mov.aa $d, $s2", [] >;
 
 def MOVAArr : MOV_RR<0x01, 0x00, "mov.aa", AddrRegs, AddrRegs>;
+
+
+def MOVsrc : SRC<0x82, (outs DataRegs:$d), 
+								(ins s4imm:$const4),
+								"mov $d, $const4",
+								 [(set DataRegs:$d, immSExt4:$const4)]>;
+
 def MOVrlc  : MOV_CONST<0x3B,"mov", (ins s16imm:$const16) ,
-              [(set DataRegs:$d, immSExt16:$const16)]> {
-	//let Inst{11-8} = 0b0001;
-}
+              [(set DataRegs:$d, immSExt16:$const16)]>;
 def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
               [(set DataRegs:$d, immZExt16:$const16)]>;
 

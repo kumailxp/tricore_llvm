@@ -449,7 +449,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 			hiShift = 65536 + hiShift;
 
 		ConstHi = CurDAG->getTargetConstant(hiShift, N, MVT::i32);
-
+		SDValue ConstSLo = CurDAG->getTargetConstant(ImmLo_ext64, N, MVT::i32);
 		MachineSDNode *Move;
 
 	  if ((ImmHi == 0) && ImmLo) {
@@ -472,13 +472,13 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 
   		if( (ImmSLo >= -8 && ImmSLo < 8 ) || ImmLo < 8)
   			Move = CurDAG->getMachineNode(TriCore::ADDsrc, N, MVT::i32,
-		  																			SDValue(Move,0), ConstLo);
-  		else if(ImmLo >=8 && ImmLo < 256)
-  			Move = CurDAG->getMachineNode(TriCore::ADDrc, N, MVT::i32,
- 																		  SDValue(Move,0), ConstLo);
+		  																			SDValue(Move,0), ConstSLo);
+//  		else if(ImmLo >=8 && ImmLo < 256)
+//  			Move = CurDAG->getMachineNode(TriCore::ADDrc, N, MVT::i32,
+// 																		  SDValue(Move,0), ConstSLo);
   		else
   			Move = CurDAG->getMachineNode(TriCore::ADDIrlc, N, MVT::i32,
-  			  																		SDValue(Move,0), ConstLo);
+  			  																		SDValue(Move,0), ConstSLo);
 	    }
 
 	  return Move;

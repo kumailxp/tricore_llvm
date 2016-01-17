@@ -178,7 +178,7 @@ class RR2<bits<8> op1, bits<12> op2, dag outs, dag ins, string asmstr,
 class RLC<bits<8> op1, dag outs, dag ins, string asmstr,
                  list<dag> pattern> : T32<outs, ins, asmstr, pattern> {
   
-  bits<4> s1 = 0;
+  bits<4> s1;
   bits<16> const16;
   bits<4> d;
   
