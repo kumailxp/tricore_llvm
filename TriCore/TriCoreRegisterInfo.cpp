@@ -43,7 +43,8 @@ TriCoreRegisterInfo::TriCoreRegisterInfo() : TriCoreGenRegisterInfo(TriCore::A11
 
 const uint16_t *
 TriCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  static const uint16_t CalleeSavedRegs[] = { 0 };
+  static const uint16_t CalleeSavedRegs[] =
+  { 0 };
   return CalleeSavedRegs;
 }
 
@@ -59,10 +60,10 @@ BitVector TriCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const 
   return Reserved;
 }
 
-//const uint32_t *TriCoreRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
-//                                                      CallingConv::ID) const {
-////  return CC_Save_RegMask;
-//}
+const uint32_t *TriCoreRegisterInfo::getCallPreservedMask(const MachineFunction &MF,
+                                                      CallingConv::ID) const {
+  return CC_Save_RegMask;
+}
 
 bool
 TriCoreRegisterInfo::requiresRegisterScavenging(const MachineFunction &MF) const {
@@ -74,9 +75,16 @@ TriCoreRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const
   return true;
 }
 
-//bool TriCoreRegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
-//  return false;
+bool TriCoreRegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
+  return false;
+}
+
+//const TargetRegisterClass *
+//TriCoreRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
+//                                                                         const {
+//  return &TriCore::AddrRegsRegClass;
 //}
+
 
 void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 		int SPAdj, unsigned FIOperandNum, RegScavenger *RS) const {
@@ -99,8 +107,8 @@ void TriCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 		//Offset += MF.getFrameInfo()->getStackSize();
 		//Offset += MI.getOperand(FIOperandNum + 1).getImm();
 		Offset = -Offset;
-		outs().changeColor(raw_ostream::GREEN, 1) << "Offset: " << Offset << "\n";
-		outs().changeColor(raw_ostream::WHITE, 0);
+//		outs().changeColor(raw_ostream::GREEN, 1) << "Offset: " << Offset << "\n";
+//		outs().changeColor(raw_ostream::WHITE, 0);
 		const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
 		MI.setDesc(TII.get(TriCore::MOVDrr));
 		MI.getOperand(FIOperandNum).ChangeToRegister(BasePtr, false);
@@ -139,6 +147,10 @@ unsigned TriCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const 
   //const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   //return TFI->hasFP(MF) ? (TriCore::A11) :
   //                        (TriCore::A10);
-	return TriCore::A14;
+
+	 const TriCoreFrameLowering *TFI = getFrameLowering(MF);
+	  return TFI->hasFP(MF) ? TriCore::A14 : TriCore::A10;
+
+	 //return TriCore::A14;
 }
 

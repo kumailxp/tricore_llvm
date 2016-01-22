@@ -97,13 +97,13 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
-  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+  // const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   uint64_t StackSize = computeStackSize(MF);
   if (!StackSize) {
     return;
   }
 
-  if (TFI->hasFP(MF)) {
+  if (hasFP(MF)) {
   	MachineFunction::iterator I;
   	BuildMI(MBB, MBBI, dl, TII.get(TriCore::MOVAAsrr), TriCore::A14)
 	      			.addReg(TriCore::A10);
@@ -128,9 +128,9 @@ void TriCoreFrameLowering::emitPrologue(MachineFunction &MF,
   }
 }
 
+
 void TriCoreFrameLowering::emitEpilogue(MachineFunction &MF,
-                                    MachineBasicBlock &MBB) const {
-}
+                            MachineBasicBlock &MBB) const {}
 
 // This function eliminates ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo
 // instructions

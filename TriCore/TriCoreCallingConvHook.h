@@ -43,6 +43,7 @@ private:
 public:
 	TriCoreCallingConvHook();
 	bool isRegValPtrType (MachineFunction& _mf);
+	bool isRegVali64Type (MachineFunction& _mf);
 	void init();
 	void setCurPos(uint32_t curPos = 0) {this->curPos = curPos;}
 	void setArgPos(uint32_t curArg = 0) {this->curArg = curArg;}
@@ -60,6 +61,7 @@ public:
 	uint32_t getArgPos() const {	return curArg;}
 	unsigned getNextAddrRegs(StringRef fName);
 	unsigned getNextDataRegs(StringRef fName);
+	unsigned getNextExtRegs(StringRef fName);
 	bool getRegRecordisPointer(uint32_t pos);
 	StringRef getFunctionName(uint32_t pos);
 	unsigned getRegRecordRegister(uint32_t pos);

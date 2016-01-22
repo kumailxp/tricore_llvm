@@ -32,14 +32,12 @@ def callseq_start : SDNode<"ISD::CALLSEQ_START", SDT_TriCoreCallSeqStart,
 def callseq_end   : SDNode<"ISD::CALLSEQ_END",   SDT_TriCoreCallSeqEnd,
                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
-//def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
-def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
+def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
+//def SDT_TriCoreCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;
 
 //===----------------------------------------------------------------------===//
 // Custom SDNodes.
 //===----------------------------------------------------------------------===//
-
-def load_sym : SDNode<"TriCoreISD::LOAD_SYM", SDTIntUnaryOp>;
 
 def movei32 : SDNode<"TriCoreISD::MOVEi32", MoveImm32Ty>;
 
@@ -88,9 +86,8 @@ def u16imm     : Operand<i32> { let PrintMethod = "printZExtImm<16>";  }
 def immSExt4  : PatLeaf<(imm), [{ return isInt<4>(N->getSExtValue()); }]>;
 def immSExt6  : PatLeaf<(imm), [{ return isInt<6>(N->getSExtValue()); }]>;
 def immSExt9  : PatLeaf<(imm), [{ return isInt<9>(N->getSExtValue()); }]>;
-//def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
+def immSExt16  : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 def immSExt24  : PatLeaf<(imm), [{ return isInt<24>(N->getSExtValue()); }]>;
-def immSExt16 : ImmLeaf<i32, [{return (Imm>=-65536 && Imm<65536); }]>;
 
 
 def immZExt8 : ImmLeaf<i32, [{return Imm == (Imm & 0xff);}]>;

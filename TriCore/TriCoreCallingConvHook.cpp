@@ -28,6 +28,14 @@ bool TriCoreCallingConvHook::isRegValPtrType (MachineFunction& _mf) {
 	return FI->getType()->isPointerTy()? true : false;
 }
 
+bool TriCoreCallingConvHook::isRegVali64Type (MachineFunction& _mf) {
+	Function::const_arg_iterator FI;
+	FI = _mf.getFunction()->arg_begin();
+	std::advance(FI,curArg);
+	outs() << "size: " << FI->getType()->getScalarSizeInBits() << "\n";
+	return (FI->getType()->getScalarSizeInBits() == 64) ? true : false;
+}
+
 void TriCoreCallingConvHook::saveRegRecord(StringRef funName, unsigned reg, bool isPointer){
 	struct regInfo tmp;
 	tmp.fName = funName;
@@ -108,6 +116,24 @@ unsigned TriCoreCallingConvHook::getNextDataRegs(StringRef fName) {
 	unsigned lastReg = regList.back();
 
 	if (lastReg == TriCore::D7)
+		return UNKNOWN_REG;
+	return lastReg + 1;
+}
+
+unsigned TriCoreCallingConvHook::getNextExtRegs(StringRef fName) {
+
+	std::vector<unsigned> regList;
+
+	for (auto& rec : regRecord) {
+		if (rec.fName==fName && rec.reg >= TriCore::E4 && rec.reg <= TriCore::E6)
+			regList.push_back(rec.reg);
+	}
+	if (regList.size() == 0)
+		return TriCore::E4;
+
+	unsigned lastReg = regList.back();
+
+	if (lastReg == TriCore::E6)
 		return UNKNOWN_REG;
 	return lastReg + 1;
 }

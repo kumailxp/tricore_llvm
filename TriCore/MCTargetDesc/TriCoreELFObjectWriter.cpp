@@ -44,10 +44,10 @@ unsigned TriCoreELFObjectWriter::GetRelocType(const MCValue &Target,
   switch ((unsigned)Fixup.getKind()) {
   default:
     llvm_unreachable("Unimplemented");
-  case TriCore::fixup_leg_mov_hi16_pcrel:
+  case TriCore::fixup_tricore_mov_hi16_pcrel:
     Type = ELF::R_ARM_MOVT_PREL;
     break;
-  case TriCore::fixup_leg_mov_lo16_pcrel:
+  case TriCore::fixup_tricore_mov_lo16_pcrel:
     Type = ELF::R_ARM_MOVW_PREL_NC;
     break;
   }

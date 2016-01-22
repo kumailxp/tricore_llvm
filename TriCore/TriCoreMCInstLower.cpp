@@ -43,15 +43,11 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
     Symbol = MO.getMBB()->getSymbol();
     break;
   case MachineOperand::MO_GlobalAddress: {
-  	//outs()<<"MachineOperand::MO_GlobalAddress\n";
-    Symbol = Printer.getSymbol(MO.getGlobal());
-    //Offset += MO.getOffset();
-    //Offset = 0;
-//    outs()<<"offset->MCInstr: " << Offset <<"\n";
-//    const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, *Ctx);
-//    Expr = MCBinaryExpr::createAdd(Expr,MCConstantExpr::create(Offset, *Ctx),*Ctx);
-//    return MCOperand::createExpr(Expr);
-    break;
+  	Symbol = Printer.getSymbol(MO.getGlobal());
+		Offset += MO.getOffset();
+		break;
+//  	Symbol = Printer.getSymbol(MO.getGlobal());
+//  	break;
   }
   case MachineOperand::MO_BlockAddress:
     Symbol = Printer.GetBlockAddressSymbol(MO.getBlockAddress());
@@ -85,26 +81,29 @@ MCOperand TriCoreMCInstLower::LowerSymbolOperand(const MachineOperand &MO,
       Kind = MCSymbolRefExpr::VK_TRICORE_HI_OFFSET;
       break;
   }
+
   const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol, Kind, *Ctx);
 
-  if (!Offset) {
-    return MCOperand::createExpr(MCSym);
-  }
+    if (!Offset) {
+      return MCOperand::createExpr(MCSym);
+    }
 
-  // Assume offset is never negative.
-  //assert(Offset > 0);
-//  outs().changeColor(raw_ostream::BLUE,1)<<"MO_GlobalAddress->offset: "
-//    																				<< Offset <<"\n";
+    // Assume offset is never negative.
+    assert(Offset > 0 && "Offset is not negative");
+
+    const MCConstantExpr *OffsetExpr = MCConstantExpr::create(Offset, *Ctx);
+    const MCBinaryExpr *Add = MCBinaryExpr::createAdd(MCSym, OffsetExpr, *Ctx);
+    return MCOperand::createExpr(Add);
 
 
-  //const MCConstantExpr *OffsetExpr = MCConstantExpr::create(Offset, *Ctx);
-  //const MCBinaryExpr *Add = MCBinaryExpr::createAdd(MCSym, OffsetExpr, *Ctx);
-  //Add->dump();
-  //MCOperand::createExpr(Add).dump();
-  //outs().changeColor(raw_ostream::WHITE,0);
-  return MCOperand::createExpr(MCSym);
-
-  //return MCOperand::createExpr(Add);
+//		const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::create(Symbol, Kind, *Ctx);
+//
+//		if (!Offset) {
+//			return MCOperand::createExpr(MCSym);
+//		}
+//
+//
+//		return MCOperand::createExpr(MCSym);
 
 }
 

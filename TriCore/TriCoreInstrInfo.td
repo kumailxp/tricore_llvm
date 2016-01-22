@@ -53,6 +53,7 @@ def TriCorecmp     : SDNode<"TriCoreISD::CMP",
 def TriCorelogiccmp: SDNode<"TriCoreISD::LOGICCMP", 
 														SDT_TriCoreLCmp, [SDNPInGlue, SDNPOutGlue]>;
 def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDT_TriCoreWrapper>;
+//def TriCoreWrapper : SDNode<"TriCoreISD::Wrapper", SDTIntUnaryOp>;
 def TriCoreimask   : SDNode<"TriCoreISD::IMASK", SDT_TriCoreImask>;
 def TriCoresh      : SDNode<"TriCoreISD::SH",  SDT_TriCoreShift>;
 def TriCoresha     : SDNode<"TriCoreISD::SHA", SDT_TriCoreShift>;
@@ -67,6 +68,7 @@ def jmptarget : Operand<OtherVT> {
 def cc : Operand<i32> {
   let PrintMethod = "printCCOperand";
 }
+
 
 def isPointer : Predicate<"isPointer() == true">;
 def isnotPointer : Predicate<"isPointer() == false">;
@@ -94,6 +96,8 @@ let Constraints = "$s1 = $d" in
 		[(set DataRegs:$d, (add DataRegs:$s1, immSExt4:$const4) )]>;
 
 let isCommutable = 1 in {
+	
+	let AddedComplexity = 6 in
 	def ADDrr : RR<0x0B, 0x00, (outs DataRegs:$d), 
 			(ins DataRegs:$s1, DataRegs:$s2),
 			"add $d, $s1, $s2",
@@ -103,7 +107,16 @@ let isCommutable = 1 in {
 			(ins AddrRegs:$s1, AddrRegs:$s2),
 			"add.a $d, $s1, $s2",
 			[(set AddrRegs:$d, (add AddrRegs:$s1, AddrRegs:$s2))]>;
+	
+
 } // let isCommutable = 1
+
+let Constraints="$d = $fksrc",
+		AddedComplexity = 7 in
+def ADDsrr: SRR<0x42, (outs DataRegs:$d),
+		(ins DataRegs:$fksrc, DataRegs:$s2 ),
+		"add $d, $s2",
+		[(set DataRegs:$d, (add DataRegs:$s2, DataRegs:$fksrc))]>;
 
 def ADDrc : RC<0x8B, 0x00, (outs DataRegs:$d),
 		(ins DataRegs:$s1, i32imm:$const9),
@@ -401,7 +414,7 @@ def MOVUrlc : MOV_CONST<0xBB,"mov.u", (ins u16imm:$const16) ,
 
 def MOVHrlc : MOV_CONST<0x7B, "movh", (ins i32imm:$const16), [/* No Pattern*/]>;
 
-let isReMaterializable = 1, isAsCheapAsAMove = 1 in 
+//let isReMaterializable = 1, isAsCheapAsAMove = 1 in 
 def MOVi32 : Pseudo<(outs DataRegs:$d), (ins i32imm:$const32), "##NAME## Pseudo",
                      [(set DataRegs:$d, (movei32 imm:$const32))]>;
 
@@ -441,6 +454,11 @@ def LDWbo : BOL<0x19, (outs DataRegs:$d),
 		 (ins memsrc:$memri),
 		 "ld.w $d, $memri",
 		 [(set DataRegs:$d, (load addr:$memri))]>{ let mayLoad = 1; }
+
+//def LDAbo : BOL<0x99, (outs AddrRegs:$d),
+//		 (ins memsrc:$memri),
+//		 "ld.a $d, $memri",
+//		 [(set AddrRegs:$d, (load addr:$memri))]>{ let mayLoad = 1; }
 
 def : Pat<(extloadi8 addr:$src), (LDBbo addr:$src)>;
 def : Pat<(extloadi16 addr:$src), (LDHbo addr:$src)>;
@@ -507,21 +525,63 @@ let isTerminator = 1, isReturn = 1,
   	let Inst{15-12} = 0x9; 
   }
 
+//let isTerminator = 1, isReturn = 1, 
+//		isBarrier = 1, Uses = [A11] in 
+//	def RETsr : T16<0x00, (outs), (ins variable_ops), "ret",  [(TriCoreRetFlag)]> {
+//		let Inst{15-12} = 0x9; 
+//	}
 
+  
+  
 //===----------------------------------------------------------------------===//
 // Call Instructions
 //===----------------------------------------------------------------------===//
 
+// The target of a 24-bit call instruction.
+def call_target : Operand<i32>
+{
+		let EncoderMethod = "encodeCallTarget";
+}  
+  
+  
 let isCall = 1, Defs = [A11], Uses = [A10] in 
-	def BL : B<0x6D, (outs), (ins i32imm:$disp),
-	"call $disp ",  [(tricore_call imm:$disp)]>;
+	def CALLb : B<0x6D, (outs), (ins i32imm:$disp24),
+	"call $disp24",  [(tricore_call imm:$disp24)]>;
 
+def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
+					(CALLb tglobaladdr:$dst)>;
+def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
+		 (MOVi32 tglobaladdr:$dst)>;
 
 //===----------------------------------------------------------------------===//
-// Extension Instructions
+// Tentative Call Instructions
 //===----------------------------------------------------------------------===//
 
+//def SDT_LEGCall    : SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>;  
+// 
+//def load_sym : SDNode<"TriCoreISD::LOAD_SYM", SDT_TriCoreWrapper>;
+//
+//def leg_call
+//		: SDNode<"TriCoreISD::CALL", SDT_LEGCall,
+//						 [ SDNPHasChain, SDNPOptInGlue, SDNPOutGlue, SDNPVariadic ]>;
+//
+//let isCall = 1, Defs = [A11], Uses = [A10] in 
+//	def CALLb : B<0x6D, (outs), (ins call_target:$disp24),
+//	"call $disp24",  [(leg_call imm:$disp24)]>;
+//		
+//def : Pattern<(i32 (load_sym tglobaladdr:$addr)),  [(MOVi32 $addr)]>;
+//
+//let isCall = 1, Defs = [A11], Uses = [A10] in 
+//	def CALLb : B<0x6D, (outs), (ins DataRegs:$addr),
+//	"call $addr",  [(leg_call DataRegs:$addr)]>;
 
+//def : Pattern<(i32 (load_sym tglobaladdr:$addr)),  [(MOVi32 $addr)]>;
+
+//def : Pat<(add DataRegs:$src, (TriCoreWrapper tglobaladdr :$src2)),
+//					(ADDrc DataRegs:$src, tglobaladdr:$src2)>;  
+
+//def : Pattern<(i32 (load_sym tglobaladdr:$addr)),  [(MOVi32 $addr)]>;
+	
 //===----------------------------------------------------------------------===//
 // Compare Instructions
 //===----------------------------------------------------------------------===//
@@ -757,9 +817,6 @@ def ADJCALLSTACKUP   : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
 //===----------------------------------------------------------------------===//
 // Patterns
 //===----------------------------------------------------------------------===//
-def : Pat<(tricore_call (i32 tglobaladdr:$dst)),
-          (BL tglobaladdr:$dst)>;
-
 // Lower 32 bits of a 64-bit word 
 def LO32 : SDNodeXForm<imm, [{
 	return CurDAG->getTargetConstant((uint32_t) N->getZExtValue(), SDLoc(N), MVT::i32);
@@ -944,6 +1001,5 @@ def : Pat<(i64 (zextloadi8 addr:$offset)),
 		          		           (LDBUbo addr:$offset), subreg_even)),
 		          		           (MOVrlc 0), subreg_odd)>;
 
-def : Pat<(i32 (TriCoreWrapper tglobaladdr:$dst)), 
-		 (MOVi32 tglobaladdr:$dst)>;
+
 

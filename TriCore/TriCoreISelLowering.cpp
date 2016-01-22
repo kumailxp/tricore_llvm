@@ -64,9 +64,9 @@ TriCoreTargetLowering::TriCoreTargetLowering(TriCoreTargetMachine &TriCoreTM)
     : TargetLowering(TriCoreTM), Subtarget(*TriCoreTM.getSubtargetImpl()) {
   // Set up the register classes.
   addRegisterClass(MVT::i32, &TriCore::DataRegsRegClass);
-  addRegisterClass(MVT::i32, &TriCore::AddrRegsRegClass);
+  //addRegisterClass(MVT::i32, &TriCore::AddrRegsRegClass);
   addRegisterClass(MVT::i64, &TriCore::ExtRegsRegClass);
-  addRegisterClass(MVT::i32, &TriCore::PSRegsRegClass);
+  //addRegisterClass(MVT::i32, &TriCore::PSRegsRegClass);
 
 
 
@@ -365,15 +365,20 @@ SDValue TriCoreTargetLowering::LowerSELECT_CC(SDValue Op,
 SDValue TriCoreTargetLowering::LowerGlobalAddress(SDValue Op, SelectionDAG& DAG) const
 {
 
-	EVT VT = Op.getValueType();
+  EVT VT = Op.getValueType();
 
- GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
- int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
- SDValue TargetAddr =
-     DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
+	GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
+	int64_t Offset = cast<GlobalAddressSDNode>(Op)->getOffset();
+	SDValue TargetAddr =
+		 DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32, Offset);
+	return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
 
 
- return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
+//  EVT VT = Op.getValueType();
+//  GlobalAddressSDNode *GlobalAddr = cast<GlobalAddressSDNode>(Op.getNode());
+//  SDValue TargetAddr =
+//      DAG.getTargetGlobalAddress(GlobalAddr->getGlobal(), Op, MVT::i32);
+//  return DAG.getNode(TriCoreISD::Wrapper, Op, VT, TargetAddr);
 }
 
 
@@ -447,10 +452,6 @@ TriCoreTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
 //===----------------------------------------------------------------------===//
 
 #include "TriCoreGenCallingConv.inc"
-
-//===----------------------------------------------------------------------===//
-//                  Call Calling Convention Implementation
-//===----------------------------------------------------------------------===//
 
 /// TriCore call implementation
 SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
@@ -538,8 +539,6 @@ SDValue TriCoreTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
     InFlag = Chain.getValue(1);
   }
 
-
-
   std::vector<SDValue> Ops;
   Ops.push_back(Chain);
   Ops.push_back(Callee);
@@ -593,10 +592,18 @@ SDValue TriCoreTargetLowering::LowerCallResult(
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
                  *DAG.getContext());
 
+  Type* t= DAG.getMachineFunction().getFunction()->getReturnType();
+  t->dump();
+  outs() << "LowerCallResult IsPointer: " << t->isPointerTy() << "\n";
+
   CCInfo.AnalyzeCallResult(Ins, RetCC_TriCore);
   //DAG.getMachineFunction().getFunction()->get
   // Copy all of the result registers out of their specified physreg.
   for (auto &Loc : RVLocs) {
+
+  	if (t->isPointerTy())
+  		Loc.convertToReg(TriCore::A2);
+
     Chain = DAG.getCopyFromReg(Chain, dl, Loc.getLocReg(), Loc.getValVT(),
                                InGlue).getValue(1);
     InGlue = Chain.getValue(2);
@@ -633,13 +640,13 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 
 //  DAG.getMachineFunction().getFunction()
 	CCInfo.AnalyzeFormalArguments(Ins, CC_TriCore);
-        
+
 
 	CCValAssign VA;
 	TCCH.init();
 
 	for (uint32_t i = 0; i < ArgLocs.size(); i++) {
-                
+
 		VA = ArgLocs[i];
 
 		SDValue ArgIn;
@@ -649,7 +656,13 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 			AddrReg = TCCH.getNextAddrRegs(funName);
 			if (AddrReg != UNKNOWN_REG)
 				VA.convertToReg(AddrReg);
-		  } else {
+		  }
+		else if (TCCH.isRegVali64Type(MF)) {
+			unsigned ExtReg = TCCH.getNextExtRegs(funName);
+			if (ExtReg != UNKNOWN_REG)
+				VA.convertToReg(ExtReg);
+		}
+		else {
 			unsigned DataReg = TCCH.getNextDataRegs(funName);
 			if (DataReg != UNKNOWN_REG)
 				VA.convertToReg(DataReg);
@@ -658,12 +671,12 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 		if (VA.isRegLoc()) {
 			// Arguments passed in registers
 			EVT RegVT = VA.getLocVT();
-			assert(RegVT.getSimpleVT().SimpleTy == MVT::i32
-							&& "Only support MVT::i32 register passing");
+			assert( (RegVT.getSimpleVT().SimpleTy == MVT::i32 ||
+					   RegVT.getSimpleVT().SimpleTy == MVT::i64)
+							&& "supports MVT::i32 and  MVT::i64  register passing");
 
 			unsigned VReg;
 
-//			outs() << "TCCH curPos: " << TCCH.getCurPos() << "\n";
 			// If the argument is a pointer type then create a AddrRegsClass
 			// Virtual register.
 			if (TCCH.isRegValPtrType(MF)) {
@@ -673,6 +686,13 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 				TCCH.saveRegRecord(funName, VA.getLocReg(), true);
 				TCCH++;
 				ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT, MVT::iPTR);
+			}
+			else if (TCCH.isRegVali64Type(MF))  {
+				VReg = RegInfo.createVirtualRegister(&TriCore::ExtRegsRegClass);
+				RegInfo.addLiveIn(VA.getLocReg(), VReg); //mark the register is inuse
+				TCCH.saveRegRecord(funName, VA.getLocReg(), false);
+				ArgIn = DAG.getCopyFromReg(Chain, dl, VReg, RegVT, MVT::i64);
+				TCCH++;
 			}
 			// else place it inside a data register.
 			else {
@@ -696,12 +716,17 @@ SDValue TriCoreTargetLowering::LowerFormalArguments(SDValue Chain,
 		const unsigned Offset = VA.getLocMemOffset();
 
 		// create stack offset it the input argument is placed in memory
-		const int FI = MF.getFrameInfo()->CreateFixedObject(4, Offset, true);
+
+		uint64_t size = 4;
+		if (VA.getValVT() == MVT::i64)
+			size = 8;
+
+		const int FI = MF.getFrameInfo()->CreateFixedObject(size, Offset, true);
 		EVT PtrTy = getPointerTy(DAG.getDataLayout());
 		SDValue FIPtr = DAG.getFrameIndex(FI, PtrTy);
 
-		assert(
-				VA.getValVT() == MVT::i32 && "Only support passing arguments as i32");
+//		assert(
+//				VA.getValVT() == MVT::i32 && "Only support passing arguments as i32");
 
 		//create a load node for the created frame object
 		SDValue Load = DAG.getLoad(VA.getValVT(), dl, Chain, FIPtr,
@@ -749,7 +774,7 @@ TriCoreTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   // the return value to a location
   SmallVector<CCValAssign, 16> RVLocs;
 
-  //Type* t= DAG.getMachineFunction().getFunction()->getReturnType();
+  Type* t= DAG.getMachineFunction().getFunction()->getReturnType();
 
   // CCState - Info about the registers and stack slot.
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
@@ -763,6 +788,11 @@ TriCoreTargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   // Copy the result values into the output registers.
   for (unsigned i = 0, e = RVLocs.size(); i < e; ++i) {
     CCValAssign &VA = RVLocs[i];
+
+    // if it is a pointer, we have to store in A2
+    if (t->isPointerTy())
+    	VA.convertToReg(TriCore::A2);
+
     assert(VA.isRegLoc() && "Can only return in registers!");
 
     Chain = DAG.getCopyToReg(Chain, dl, VA.getLocReg(), OutVals[i], Flag);

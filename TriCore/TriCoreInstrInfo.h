@@ -72,20 +72,20 @@ public:
                            MachineBasicBlock::iterator I, DebugLoc DL,
                            unsigned DestReg, unsigned SrcReg,
                            bool KillSrc) const override;
-
-  virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
-                                   MachineBasicBlock::iterator MI,
-                                   unsigned SrcReg, bool isKill, int FrameIndex,
-                                   const TargetRegisterClass *RC,
-                                   const TargetRegisterInfo *TRI) const
-      override;
-
-  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                    MachineBasicBlock::iterator MI,
-                                    unsigned DestReg, int FrameIndex,
-                                    const TargetRegisterClass *RC,
-                                    const TargetRegisterInfo *TRI) const
-      override;
+//
+//  virtual void storeRegToStackSlot(MachineBasicBlock &MBB,
+//                                   MachineBasicBlock::iterator MI,
+//                                   unsigned SrcReg, bool isKill, int FrameIndex,
+//                                   const TargetRegisterClass *RC,
+//                                   const TargetRegisterInfo *TRI) const
+//     															 override;
+//
+//  virtual void loadRegFromStackSlot(MachineBasicBlock &MBB,
+//                                    MachineBasicBlock::iterator MI,
+//                                    unsigned DestReg, int FrameIndex,
+//                                    const TargetRegisterClass *RC,
+//                                    const TargetRegisterInfo *TRI) const
+//      															override;
 
   void splitRegs(unsigned Reg, unsigned &LoReg, unsigned &HiReg) const;
 

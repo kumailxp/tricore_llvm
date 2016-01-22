@@ -33,7 +33,7 @@ static cl::opt<bool> UseSmallSectionOpt
 TriCoreSubtarget::TriCoreSubtarget(const Triple &TT, StringRef CPU, StringRef FS,
                            TriCoreTargetMachine &TM)
     : TriCoreGenSubtargetInfo(TT, CPU, FS),
-      DL("e-m:e-p:32:32-a:8:16-n32"),
+      DL("e-m:e-p:32:32-i64:32-a:0:32-n32"),
       InstrInfo(), TLInfo(TM), TSInfo(), FrameLowering() {
 
 	 UseSmallSection = UseSmallSectionOpt;

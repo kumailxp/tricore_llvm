@@ -50,13 +50,16 @@ unsigned
 TriCoreInstrInfo::isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex)
                                           const{
 
-	if ((MI->getOperand(1).isFI()) && (MI->getOperand(2).isImm())
-			&& (MI->getOperand(2).getImm() == 0)) {
-		FrameIndex = MI->getOperand(1).getIndex();
-		return MI->getOperand(0).getReg();
-	}
+//	if ((MI->getOperand(1).isFI()) && (MI->getOperand(2).isImm())
+//			&& (MI->getOperand(2).getImm() == 0)) {
+//		FrameIndex = MI->getOperand(1).getIndex();
+//		return MI->getOperand(0).getReg();
+//	}
+//
+//	return 0;
 
-	return 0;
+  assert(0 && "Unimplemented");
+  return 0;
 }
   
   /// isStoreToStackSlot - If the specified machine instruction is a direct
@@ -67,13 +70,16 @@ TriCoreInstrInfo::isLoadFromStackSlot(const MachineInstr *MI, int &FrameIndex)
 unsigned TriCoreInstrInfo::isStoreToStackSlot(const MachineInstr *MI,
 		int &FrameIndex) const {
 
-	if ((MI->getOperand(0).isFI()) && (MI->getOperand(1).isImm())
-			&& (MI->getOperand(1).getImm() == 0)) {
-		FrameIndex = MI->getOperand(0).getIndex();
-		return MI->getOperand(2).getReg();
-	}
+//	if ((MI->getOperand(0).isFI()) && (MI->getOperand(1).isImm())
+//			&& (MI->getOperand(1).getImm() == 0)) {
+//		FrameIndex = MI->getOperand(0).getIndex();
+//		return MI->getOperand(2).getReg();
+//	}
+//
+//	return 0;
 
-	return 0;
+  assert(0 && "Unimplemented");
+  return 0;
 
 }
 
@@ -111,57 +117,57 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
 }
 
-void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-                                         MachineBasicBlock::iterator I,
-                                         unsigned SrcReg, bool isKill,
-                                         int FrameIndex,
-                                         const TargetRegisterClass *RC,
-																				 const TargetRegisterInfo *TRI) const
-{
-	outs()<<"==TriCoreInstrInfo::storeRegToStackSlot==\n";
-	DebugLoc DL;
-	if (I != MBB.end()) DL = I->getDebugLoc();
-	MachineFunction &MF = *MBB.getParent();
-	MachineFrameInfo &MFI = *MF.getFrameInfo();
-
-	MachineMemOperand *MMO =
-			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
-					MachineMemOperand::MOStore,
-					MFI.getObjectSize(FrameIndex),
-					MFI.getObjectAlignment(FrameIndex));
-
-
-	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STWbo))
-	.addReg(SrcReg, getKillRegState(isKill))
-	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
-}
-
-void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-                                          MachineBasicBlock::iterator I,
-                                          unsigned DestReg, int FrameIndex,
-                                          const TargetRegisterClass *RC,
-                                          const TargetRegisterInfo *TRI) const
-{
-	outs().changeColor(raw_ostream::BLUE,1);
-	outs()<<"loadRegFromStackSlot\n";
-	outs().changeColor(raw_ostream::WHITE,0);
-	DebugLoc DL;
-	if (I != MBB.end()) DL = I->getDebugLoc();
-	MachineFunction &MF = *MBB.getParent();
-	MachineFrameInfo &MFI = *MF.getFrameInfo();
-
-	// issues the machine instruction “ld $r, offset($sp)”
-	// to load incoming arguments from stack frame offset
-	MachineMemOperand *MMO =
-			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
-					MachineMemOperand::MOLoad,
-					MFI.getObjectSize(FrameIndex),
-					MFI.getObjectAlignment(FrameIndex));
-
-
-	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDWbo), DestReg)
-      .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
-}
+//void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
+//                                         MachineBasicBlock::iterator I,
+//                                         unsigned SrcReg, bool isKill,
+//                                         int FrameIndex,
+//                                         const TargetRegisterClass *RC,
+//																				 const TargetRegisterInfo *TRI) const
+//{
+//	outs()<<"==TriCoreInstrInfo::storeRegToStackSlot==\n";
+//	DebugLoc DL;
+//	if (I != MBB.end()) DL = I->getDebugLoc();
+//	MachineFunction &MF = *MBB.getParent();
+//	MachineFrameInfo &MFI = *MF.getFrameInfo();
+//
+//	MachineMemOperand *MMO =
+//			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+//					MachineMemOperand::MOStore,
+//					MFI.getObjectSize(FrameIndex),
+//					MFI.getObjectAlignment(FrameIndex));
+//
+//
+//	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STWbo))
+//	.addReg(SrcReg, getKillRegState(isKill))
+//	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
+//}
+//
+//void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
+//                                          MachineBasicBlock::iterator I,
+//                                          unsigned DestReg, int FrameIndex,
+//                                          const TargetRegisterClass *RC,
+//                                          const TargetRegisterInfo *TRI) const
+//{
+//	outs().changeColor(raw_ostream::BLUE,1);
+//	outs()<<"loadRegFromStackSlot\n";
+//	outs().changeColor(raw_ostream::WHITE,0);
+//	DebugLoc DL;
+//	if (I != MBB.end()) DL = I->getDebugLoc();
+//	MachineFunction &MF = *MBB.getParent();
+//	MachineFrameInfo &MFI = *MF.getFrameInfo();
+//
+//	// issues the machine instruction “ld $r, offset($sp)”
+//	// to load incoming arguments from stack frame offset
+//	MachineMemOperand *MMO =
+//			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+//					MachineMemOperand::MOLoad,
+//					MFI.getObjectSize(FrameIndex),
+//					MFI.getObjectAlignment(FrameIndex));
+//
+//
+//	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDWbo), DestReg)
+//      .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
+//}
 
 //TriCoreCC::CondCodes
 //						TriCoreInstrInfo::getCondFromBranchOpc(unsigned Opc) const {
@@ -710,13 +716,15 @@ bool TriCoreInstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const
 		}
 		else {
 			const GlobalValue *GV = MO.getGlobal();
+			const unsigned TF = MO.getTargetFlags();
 			auto HI16 = BuildMI(MBB, MI, DL, get(TriCore::MOVHrlc))
 								.addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead));
-			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() , TriCoreII::MO_HI_OFFSET);
+			HI16 = HI16.addGlobalAddress(GV, MO.getOffset() ,  TF  | TriCoreII::MO_HI_OFFSET);
+
 			auto ADDIrlc = BuildMI(MBB, MI, DL, get(TriCore::ADDIrlc))
 					           .addReg(DstReg, RegState::Define | getDeadRegState(DstIsDead))
 										 .addReg(DstReg);
-			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TriCoreII::MO_LO_OFFSET);
+			ADDIrlc = ADDIrlc.addGlobalAddress(GV,MO.getOffset() , TF  | TriCoreII::MO_LO_OFFSET);
 		}
 
 		MBB.erase(MI);

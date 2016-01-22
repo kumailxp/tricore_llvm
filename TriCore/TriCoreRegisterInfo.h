@@ -31,8 +31,8 @@ public:
   const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const
       override;
 
-//  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
-//                                       CallingConv::ID) const override;
+  const uint32_t *getCallPreservedMask(const MachineFunction &MF,
+                                       CallingConv::ID) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 
@@ -40,7 +40,10 @@ public:
 
   bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override;
 
-  //bool useFPForScavengingIndex(const MachineFunction &MF) const override;
+  bool useFPForScavengingIndex(const MachineFunction &MF) const override;
+
+//  const TargetRegisterClass *getPointerRegClass(const MachineFunction &MF,
+//  																						unsigned Kind) const;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                            unsigned FIOperandNum, RegScavenger *RS = NULL) const

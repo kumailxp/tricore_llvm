@@ -131,7 +131,6 @@ bool TriCoreDAGToDAGISel::MatchWrapper(SDValue N, TriCoreISelAddressMode &AM) {
 		errs().changeColor(raw_ostream::WHITE,0); );
 		return true;
 	}
-
 	SDValue N0 = N.getOperand(0);
 
 	DEBUG(errs() << "Match Wrapper N => ";
@@ -260,7 +259,7 @@ bool TriCoreDAGToDAGISel::SelectAddr_new(SDValue N,
 	if (AM.GV) {
 		DEBUG(errs() <<"AM.GV" );
 		//GlobalAddressSDNode *gAdd = dyn_cast<GlobalAddressSDNode>(N.getOperand(0));
-		Base = N;
+		//Base = N;
 		Disp = CurDAG->getTargetConstant(AM.Disp, N, MVT::i32);
 	}
 	else {
@@ -279,41 +278,24 @@ bool TriCoreDAGToDAGISel::SelectAddr(SDValue Addr, SDValue &Base, SDValue &Offse
 
 	return SelectAddr_new(Addr, Base, Offset);
 
-	outs().changeColor(raw_ostream::GREEN,1);
-	Addr.dump();
-	outs() <<"Addr Opcode: " << Addr.getOpcode() <<"\n";
-	outs().changeColor(raw_ostream::WHITE,0);
+  if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
+    EVT PtrVT = getTargetLowering()->getPointerTy(*TM.getDataLayout());
+    Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
+    Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
+    return true;
+  }
 
+  if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
+      Addr.getOpcode() == ISD::TargetGlobalAddress ||
+      Addr.getOpcode() == ISD::TargetGlobalTLSAddress) {
+    return false; // direct calls.
+  }
 
-	if (FrameIndexSDNode *FIN = dyn_cast<FrameIndexSDNode>(Addr)) {
-		//    EVT PtrVT = getTargetLowering()->getPointerTy(*TM.getDataLayout());
-		EVT PtrVT = getTargetLowering()->getPointerTy(CurDAG->getDataLayout());
-		Base = CurDAG->getTargetFrameIndex(FIN->getIndex(), PtrVT);
-		Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
-		//    outs().changeColor(raw_ostream::RED)<<"Selecting Frame!\n";
-		//    outs().changeColor(raw_ostream::WHITE);
+  Base = Addr;
+  Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
+  return true;
 
-		return true;
 	}
-
-
-	outs().changeColor(raw_ostream::BLUE,1);
-	Addr.dump();
-	outs().changeColor(raw_ostream::WHITE,0);
-
-	if (Addr.getOpcode() == ISD::TargetExternalSymbol ||
-			Addr.getOpcode() == ISD::TargetGlobalAddress ||
-			Addr.getOpcode() == ISD::TargetGlobalTLSAddress) {
-		outs()<<"This is working!!!!!!!!!!!!!!\n";
-		//Base = Addr;
-		//Offset = CurDAG->getTargetConstant(gAdd->getOffset(), Addr, MVT::i32);
-		return false;
-	}
-
-	Base = Addr;
-	Offset = CurDAG->getTargetConstant(0, Addr, MVT::i32);
-	return true;
-}
 
 // Returns one plus the index of the least significant
 // 1-bit of x, or if x is zero, returns zero.
@@ -424,11 +406,6 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 
 	  }
 
-//	  if ((ImmVal & SupportedMask) != ImmVal) {
-////	  	outs() <<" Immediate size not supported!\n";
-//	    return SelectCode(N);
-//	  }
-
 	  // Select the low part of the immediate move.
 		uint64_t LoMask = 0xffff;
 		uint64_t HiMask = 0xffff0000;
@@ -437,7 +414,7 @@ SDNode *TriCoreDAGToDAGISel::SelectConstant(SDNode *N) {
 
 //		outs() << "SLo: " << ImmSLo << "\n";
 		uint64_t ImmHi = (ImmVal & HiMask);
-		SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
+//		SDValue ConstLo = CurDAG->getTargetConstant(ImmLo, N, MVT::i32);
 		SDValue ConstSImm = CurDAG->getTargetConstant(ImmSVal, N, MVT::i32);
 		SDValue ConstEImm = CurDAG->getTargetConstant(ImmVal, N, MVT::i32);
 		SDValue ConstHi;
@@ -498,6 +475,8 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 	case ISD::FrameIndex: {
 		int FI = cast<FrameIndexSDNode>(N)->getIndex();
 		SDValue TFI = CurDAG->getTargetFrameIndex(FI, MVT::i32);
+//		outs() <<"N getNumValues: "<< N->getNumValues()<< "\n";
+//		outs() <<"N type: "<< N->getValueType(0).getEVTString()<< "\n";
 		if (N->hasOneUse()) {
 			return CurDAG->SelectNodeTo(N, TriCore::ADDrc, MVT::i32, TFI,
 					CurDAG->getTargetConstant(0, dl, MVT::i32));
@@ -506,11 +485,15 @@ SDNode *TriCoreDAGToDAGISel::Select(SDNode *N) {
 				CurDAG->getTargetConstant(0, dl, MVT::i32));
 	}
 	case ISD::STORE: {
-		ptyType = false;
 		ptyType = (N->getOperand(1)->getArgType() == (int64_t)MVT::iPTR) ?
 				true : false;
 		break;
 	}
+//	case ISD::LOAD : {
+//		FrameIndexSDNode* FID = dyn_cast<FrameIndexSDNode>(N->getOperand(1));
+//		FID->ge
+//		break;
+//	}
 
 }
 

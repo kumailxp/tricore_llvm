@@ -29,10 +29,9 @@ public:
   /// the function.
   void emitPrologue(MachineFunction &MF,
                     MachineBasicBlock &MBB) const override;
-  void emitPrologue_thesis(MachineFunction &MF,
-                      MachineBasicBlock &MBB) const;
 
-  void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const override;
+  void emitEpilogue(MachineFunction &MF,
+                              MachineBasicBlock &MBB) const override;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
@@ -42,7 +41,7 @@ public:
   bool hasFP(const MachineFunction &MF) const;
 
   //! Stack slot size (4 bytes)
-  static int stackSlotSize() { return 4; }
+  static int stackSlotSize() { return 8; }
 
 private:
   uint64_t computeStackSize(MachineFunction &MF) const;

@@ -59,6 +59,10 @@ public:
                           SmallVectorImpl<MCFixup> &Fixups,
                           const MCSubtargetInfo &STI) const;
 
+  unsigned encodeCallTarget(const MCInst &MI, unsigned OpNo,
+															SmallVectorImpl<MCFixup> &Fixups,
+															const MCSubtargetInfo &STI) const;
+
   void EmitByte(unsigned char C, raw_ostream &OS) const
   {
   	OS << (char)C;
@@ -86,6 +90,24 @@ MCCodeEmitter *llvm::createTriCoreMCCodeEmitter(const MCInstrInfo &MCII,
                                             const MCRegisterInfo &MRI,
                                             MCContext &Ctx) {
   return new TriCoreMCCodeEmitter(MCII, Ctx);
+}
+
+
+unsigned TriCoreMCCodeEmitter::encodeCallTarget(const MCInst &MI, unsigned OpNo,
+                                            SmallVectorImpl<MCFixup> &Fixups,
+                                            const MCSubtargetInfo &STI) const {
+  auto MO = MI.getOperand(OpNo);
+
+  if (MO.isExpr()) {
+    MCFixupKind FixupKind = static_cast<MCFixupKind>(TriCore::fixup_call);
+    Fixups.push_back(MCFixup::create(0, MO.getExpr(), FixupKind, MI.getLoc()));
+    return 0;
+  }
+
+  assert(MO.isImm());
+
+  auto target = MO.getImm();
+  return target;
 }
 
 /// getMachineOpValue - Return binary encoding of operand. If the machine
@@ -124,6 +146,7 @@ unsigned TriCoreMCCodeEmitter::getMachineOpValue(const MCInst &MI,
 
   assert (Kind == MCExpr::SymbolRef);
 
+  cast<MCSymbolRefExpr>(Expr)->printVariantKind(outs());
   unsigned FixupKind;
   switch (cast<MCSymbolRefExpr>(Expr)->getKind()) {
   default:
@@ -132,11 +155,11 @@ unsigned TriCoreMCCodeEmitter::getMachineOpValue(const MCInst &MI,
   case MCSymbolRefExpr::VK_TRICORE_HI_OFFSET:
 		return 0;
   case MCSymbolRefExpr::VK_TRICORE_LO: {
-    FixupKind = TriCore::fixup_leg_mov_lo16_pcrel;
+    FixupKind = TriCore::fixup_tricore_mov_lo16_pcrel;
     break;
   }
   case MCSymbolRefExpr::VK_TRICORE_HI: {
-    FixupKind = TriCore::fixup_leg_mov_hi16_pcrel;
+    FixupKind = TriCore::fixup_tricore_mov_hi16_pcrel;
     break;
   }
   }
