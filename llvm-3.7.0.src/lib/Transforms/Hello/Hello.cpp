@@ -16,6 +16,10 @@
 #include "llvm/IR/Function.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
+#include <llvm/Analysis/LoopInfo.h>
 using namespace llvm;
 
 #define DEBUG_TYPE "hello"
@@ -23,6 +27,34 @@ using namespace llvm;
 STATISTIC(HelloCounter, "Counts number of functions greeted");
 
 namespace {
+/*
+  struct Hello : public FunctionPass {
+    static char ID;
+    Hello() : FunctionPass(ID) {}
+    
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.setPreservesCFG();
+      AU.addRequired<LoopInfoWrapperPass>();
+    }
+    
+    bool runOnFunction(Function& F) override {
+      LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+      for (LoopInfo::iterator LIT = LI.begin(); LIT != LI.end(); ++LIT) {
+        Loop* ll = *LIT;  
+        ll->dump();
+      }
+      return false;
+    }
+
+    bool runOnLoop(Loop *L, LPPassManager &LPM) override {
+      if (PHINode* ph = L->getCanonicalInductionVariable())
+        errs() << *ph << '\n' ;
+
+      return false;
+    }
+    
+  };
+*/
   // Hello - The first implementation, without getAnalysisUsage.
   struct Hello : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
@@ -30,11 +62,24 @@ namespace {
 
     bool runOnFunction(Function &F) override {
       ++HelloCounter;
-      errs() << "Hello: ";
-      errs().write_escaped(F.getName()) << '\n';
+//      errs() << "Hello: ";
+//      errs().write_escaped(F.getName()) << '\n';
+      SmallVector<StringRef, 8> names;
+      Module* md = F.getParent();
+      md->getMDKindNames(names);
+      for( auto &X : names)
+        errs() << X << '\n';
+      for (Instruction& I : inst_range(F) ) {
+        if (I.isTerminator()) {
+          if ( strcmp(I.getOperand(0)->getName().str().c_str(), "cmp") == 0 )
+              if ( CmpInst *cp = dyn_cast<CmpInst>(I.getPrevNode()) )
+                  errs() << cp->getPredicate() << '\n';
+        }
+      }
       return false;
     }
   };
+  
 }
 
 char Hello::ID = 0;

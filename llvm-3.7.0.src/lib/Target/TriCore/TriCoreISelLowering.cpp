@@ -123,7 +123,7 @@ SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
 
 	EVT VT = Op.getValueType();
 	SDLoc dl(N);
-	outs() << "Opc: " << Opc << "\n";
+	//outs() << "Opc: " << Opc << "\n";
 	switch (Opc) {
 	default: llvm_unreachable("Invalid shift opcode!");
 	case ISD::SHL:
@@ -131,7 +131,7 @@ SDValue TriCoreTargetLowering::LowerShifts(SDValue Op,
 	case ISD::SRL:
 	case ISD::SRA:
 		if(isa<ConstantSDNode>(shiftValue)) {
-			outs() <<"shift constant\n";
+			//outs() <<"shift constant\n";
 			int64_t shiftSVal = cast<ConstantSDNode>(shiftValue)->getSExtValue();
 			assert((shiftSVal>=-32 && shiftSVal<32) &&
 							"Shift can only be between -32 and +31");
@@ -415,7 +415,7 @@ TriCoreTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   BB->addSuccessor(copy0MBB);
   BB->addSuccessor(copy1MBB);
 
-  MI->dump();
+  //MI->dump();
 
   BuildMI(BB, dl, TII.get(TriCore::JNZsbr))
     .addMBB(copy1MBB)
@@ -588,8 +588,8 @@ SDValue TriCoreTargetLowering::LowerCallResult(
                  *DAG.getContext());
 
   Type* t= DAG.getMachineFunction().getFunction()->getReturnType();
-  t->dump();
-  outs() << "LowerCallResult IsPointer: " << t->isPointerTy() << "\n";
+  //t->dump();
+  //outs() << "LowerCallResult IsPointer: " << t->isPointerTy() << "\n";
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_TriCore);
   //DAG.getMachineFunction().getFunction()->get

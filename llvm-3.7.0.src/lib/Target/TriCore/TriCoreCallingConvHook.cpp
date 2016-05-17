@@ -16,7 +16,7 @@ void TriCoreCallingConvHook::init(){
 }
 
 TriCoreCallingConvHook TriCoreCallingConvHook::
-									operator++(int) {
+operator++(int) {
 	this->curPos++;
   return *this;
 }
@@ -32,7 +32,7 @@ bool TriCoreCallingConvHook::isRegVali64Type (MachineFunction& _mf) {
 	Function::const_arg_iterator FI;
 	FI = _mf.getFunction()->arg_begin();
 	std::advance(FI,curArg);
-	outs() << "size: " << FI->getType()->getScalarSizeInBits() << "\n";
+	//outs() << "size: " << FI->getType()->getScalarSizeInBits() << "\n";
 	return (FI->getType()->getScalarSizeInBits() == 64) ? true : false;
 }
 

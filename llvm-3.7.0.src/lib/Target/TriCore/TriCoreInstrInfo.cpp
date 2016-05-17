@@ -117,57 +117,53 @@ void TriCoreInstrInfo::copyPhysReg(MachineBasicBlock &MBB,
 
 }
 
-//void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
-//                                         MachineBasicBlock::iterator I,
-//                                         unsigned SrcReg, bool isKill,
-//                                         int FrameIndex,
-//                                         const TargetRegisterClass *RC,
-//																				 const TargetRegisterInfo *TRI) const
-//{
-//	outs()<<"==TriCoreInstrInfo::storeRegToStackSlot==\n";
-//	DebugLoc DL;
-//	if (I != MBB.end()) DL = I->getDebugLoc();
-//	MachineFunction &MF = *MBB.getParent();
-//	MachineFrameInfo &MFI = *MF.getFrameInfo();
+void TriCoreInstrInfo::storeRegToStackSlot(MachineBasicBlock &MBB,
+                                         MachineBasicBlock::iterator I,
+                                         unsigned SrcReg, bool isKill,
+                                         int FrameIndex,
+                                         const TargetRegisterClass *RC,
+																				 const TargetRegisterInfo *TRI) const
+{
+	DebugLoc DL;
+	if (I != MBB.end()) DL = I->getDebugLoc();
+	MachineFunction &MF = *MBB.getParent();
+	MachineFrameInfo &MFI = *MF.getFrameInfo();
+
+	MachineMemOperand *MMO =
+			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+					MachineMemOperand::MOStore,
+					MFI.getObjectSize(FrameIndex),
+					MFI.getObjectAlignment(FrameIndex));
+
+
+	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STWbo))
+	.addReg(SrcReg, getKillRegState(isKill))
+	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
+}
 //
-//	MachineMemOperand *MMO =
-//			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
-//					MachineMemOperand::MOStore,
-//					MFI.getObjectSize(FrameIndex),
-//					MFI.getObjectAlignment(FrameIndex));
-//
-//
-//	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::STWbo))
-//	.addReg(SrcReg, getKillRegState(isKill))
-//	.addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
-//}
-//
-//void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
-//                                          MachineBasicBlock::iterator I,
-//                                          unsigned DestReg, int FrameIndex,
-//                                          const TargetRegisterClass *RC,
-//                                          const TargetRegisterInfo *TRI) const
-//{
-//	outs().changeColor(raw_ostream::BLUE,1);
-//	outs()<<"loadRegFromStackSlot\n";
-//	outs().changeColor(raw_ostream::WHITE,0);
-//	DebugLoc DL;
-//	if (I != MBB.end()) DL = I->getDebugLoc();
-//	MachineFunction &MF = *MBB.getParent();
-//	MachineFrameInfo &MFI = *MF.getFrameInfo();
-//
-//	// issues the machine instruction “ld $r, offset($sp)”
-//	// to load incoming arguments from stack frame offset
-//	MachineMemOperand *MMO =
-//			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
-//					MachineMemOperand::MOLoad,
-//					MFI.getObjectSize(FrameIndex),
-//					MFI.getObjectAlignment(FrameIndex));
-//
-//
-//	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDWbo), DestReg)
-//      .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
-//}
+void TriCoreInstrInfo::loadRegFromStackSlot(MachineBasicBlock &MBB,
+                                          MachineBasicBlock::iterator I,
+                                          unsigned DestReg, int FrameIndex,
+                                          const TargetRegisterClass *RC,
+                                          const TargetRegisterInfo *TRI) const
+{
+	DebugLoc DL;
+	if (I != MBB.end()) DL = I->getDebugLoc();
+	MachineFunction &MF = *MBB.getParent();
+	MachineFrameInfo &MFI = *MF.getFrameInfo();
+
+	// issues the machine instruction “ld $r, offset($sp)”
+	// to load incoming arguments from stack frame offset
+	MachineMemOperand *MMO =
+			MF.getMachineMemOperand(MachinePointerInfo::getFixedStack(FrameIndex),
+					MachineMemOperand::MOLoad,
+					MFI.getObjectSize(FrameIndex),
+					MFI.getObjectAlignment(FrameIndex));
+
+
+	BuildMI(MBB, I, I->getDebugLoc(), get(TriCore::LDWbo), DestReg)
+      .addFrameIndex(FrameIndex).addImm(0).addMemOperand(MMO);
+}
 
 //TriCoreCC::CondCodes
 //						TriCoreInstrInfo::getCondFromBranchOpc(unsigned Opc) const {

@@ -1,0 +1,1 @@
+llvm-tblgen ../llvm-3.7.0.src/lib/Target/TriCore/TriCore.td -I ../llvm-3.7.0.src/include/ -I ../llvm-3.7.0.src/lib/Target/TriCore/ > Tricore.stuff

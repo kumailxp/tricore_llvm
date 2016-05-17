@@ -262,6 +262,12 @@ let Defs=[PSW] in {
 	def MULrc : RC<0x53, 0x001, (outs DataRegs:$d),
 			(ins DataRegs:$s1, s9imm:$const9),  "mul $d, $s1, $const9",
 			[(set DataRegs:$d, (mul DataRegs:$s1, immSExt9:$const9) )]>;
+	
+	def MULrc2 : RC<0x53, 0x03, (outs ExtRegs:$d),
+				(ins ExtRegs:$s1, DataRegs:$s2),  "mul $d, $s1, $s2",
+				[(set ExtRegs:$d, (mul ExtRegs:$s1, (sext DataRegs:$s2)) )]>;
+	
+		
 }
 //===----------------------------------------------------------------------===//
 // Logical Instructions
@@ -881,18 +887,15 @@ def : Pat<(i64 imm:$src),
           		           (MOVi32( HI32 imm:$src)), subreg_odd)>;
 
 def INVERT_VAL : SDNodeXForm<imm, [{
-	outs() << "vall: "<< N->getZExtValue() <<"\n";
 	return CurDAG->getTargetConstant(-N->getZExtValue(), SDLoc(N), MVT::i32);
 }]>;
 
 
 def SHIFTAMT : SDNodeXForm<imm, [{
-	outs() << "vall: "<< N->getZExtValue() <<"\n";
 	return CurDAG->getTargetConstant(N->getZExtValue() - 32, SDLoc(N), MVT::i32);
 }]>;
 
 def SHIFTAMT_POS : SDNodeXForm<imm, [{
-	outs() << "vall: "<< N->getZExtValue() <<"\n";
 	return CurDAG->getTargetConstant((32 - N->getZExtValue()), SDLoc(N), MVT::i32);
 }]>;
 
@@ -909,7 +912,6 @@ def imm32_64 : PatLeaf<(imm),
 def imm0_31 : PatLeaf<(imm),
 [{
   uint64_t val = N->getZExtValue();
-	outs() <<"imm0_31: " << val << "\n";
   return val > 0 && val < 32;
 }]>;
 
@@ -1049,5 +1051,4 @@ def : Pat<(i64 (zextloadi8 addr:$offset)),
 		          		           (LDBUbo addr:$offset), subreg_even)),
 		          		           (MOVrlc 0), subreg_odd)>;
 
-
-
+		
